@@ -11,6 +11,7 @@ GenericAgent 的 Web UI 前端，基于 React + Vite + Bottle，风格对齐 Nar
     │   └── server.py            # Bottle 后端 API
     └── frontend/
         ├── package.json
+        ├── package-lock.json
         ├── index.html
         ├── vite.config.ts
         ├── tsconfig.json
@@ -18,6 +19,8 @@ GenericAgent 的 Web UI 前端，基于 React + Vite + Bottle，风格对齐 Nar
             ├── main.tsx         # React 入口
             ├── api.ts           # API 封装
             ├── App.tsx          # 主组件
+            ├── components/
+            │   └── MessageRenderer.tsx
             └── styles/
                 └── app.css      # 样式
 ```
@@ -53,7 +56,11 @@ python launch_webui.py
 ## 功能
 
 - 仪表盘：运行状态、历史会话、当前模型
-- 会话：实时流式对话、新建/中断/继续会话
+- 会话：Narra 风格三栏布局、实时流式对话、新建/中断/继续会话、历史切换、右键删除/回退
+- Markdown：消息支持 Markdown 渲染，并自动折叠 thinking/tool_use/tool_result/file_content/summary 等功能块
+- Slash 命令：输入 `/` 显示命令菜单，支持过滤、上下键选择和 Tab 补全
+- 提供商：管理 `mykey.py` 中的 LLM 提供商、测试连接、获取模型列表
+- 知识与提示词：管理系统提示词、记忆、SOP、技能文件，保存前自动备份
 - 设置（外观与界面）：
   - 主题切换（浅色/深色/跟随系统）
   - OLED 纯黑模式
