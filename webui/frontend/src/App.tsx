@@ -410,6 +410,14 @@ const knowledgeSectionMap: Record<string, { group: string; title: string; breadc
   "skills-settings": { group: "skills", title: "技能", breadcrumb: "实例管理" },
 }
 
+const shouldPreviewKnowledgeFile = (path: string) => {
+  const name = path.toLowerCase()
+  return name.endsWith('.md') ||
+    name.includes('sys_prompt') ||
+    name.includes('insight_fixed_structure') ||
+    name.includes('global_mem')
+}
+
 function KnowledgePage({ section }: { section: string }) {
   const meta = knowledgeSectionMap[section] || knowledgeSectionMap.prompts
   const [groups, setGroups] = useState<KnowledgeGroup[]>([])
@@ -447,7 +455,7 @@ function KnowledgePage({ section }: { section: string }) {
       setContent(res.content)
       setSavedContent(res.content)
       setStatus("")
-      setViewMode(selected.path.endsWith('.md') ? 'preview' : 'edit')
+      setViewMode(shouldPreviewKnowledgeFile(selected.path) ? 'preview' : 'edit')
     }).catch((e) => setStatus(e.message || String(e)))
   }, [selected?.path])
 
