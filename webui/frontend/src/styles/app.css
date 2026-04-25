@@ -1864,6 +1864,25 @@ button:disabled {
   color: #fff;
 }
 
+.knowledge-view-toggle {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 6px;
+  background: var(--subtle);
+}
+
+.knowledge-view-toggle button {
+  height: 26px;
+  border: 0;
+  background: transparent;
+}
+
+.knowledge-view-toggle button.is-active {
+  background: var(--paper);
+  color: var(--mantine-primary);
+  box-shadow: var(--shadow);
+}
+
 .knowledge-dirty {
   color: #fd7e14;
   font-size: 12px;
@@ -1890,6 +1909,18 @@ button:disabled {
   font-family: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
   font-size: 13px;
   line-height: 1.6;
+}
+
+.knowledge-preview {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 20px 24px;
+  background: var(--bg);
+}
+
+.knowledge-preview .msg-rendered {
+  max-width: 900px;
 }
 
 .knowledge-empty,

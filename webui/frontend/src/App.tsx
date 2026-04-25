@@ -418,6 +418,7 @@ function KnowledgePage({ section }: { section: string }) {
   const [content, setContent] = useState("")
   const [savedContent, setSavedContent] = useState("")
   const [status, setStatus] = useState("")
+  const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit')
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
@@ -446,6 +447,7 @@ function KnowledgePage({ section }: { section: string }) {
       setContent(res.content)
       setSavedContent(res.content)
       setStatus("")
+      setViewMode(selected.path.endsWith('.md') ? 'preview' : 'edit')
     }).catch((e) => setStatus(e.message || String(e)))
   }, [selected?.path])
 
@@ -501,6 +503,10 @@ function KnowledgePage({ section }: { section: string }) {
                 <div className="knowledge-actions">
                   {dirty && <span className="knowledge-dirty">未保存</span>}
                   {selected.readonly && <span className="knowledge-readonly">只读</span>}
+                  <div className="knowledge-view-toggle">
+                    <button className={viewMode === 'edit' ? 'is-active' : ''} onClick={() => setViewMode('edit')}>编辑</button>
+                    <button className={viewMode === 'preview' ? 'is-active' : ''} onClick={() => setViewMode('preview')}>预览</button>
+                  </div>
                   <button onClick={() => navigator.clipboard?.writeText(selected.path)}>复制路径</button>
                   <button onClick={backup}>备份</button>
                   <button onClick={() => selected && api.knowledgeFile(selected.path).then((res) => { setContent(res.content); setSavedContent(res.content) })}>重载</button>
@@ -508,7 +514,13 @@ function KnowledgePage({ section }: { section: string }) {
                 </div>
               </div>
               {status && <div className="knowledge-status">{status}</div>}
-              <textarea className="knowledge-textarea" value={content} readOnly={selected.readonly} onChange={(e) => setContent(e.target.value)} spellCheck={false} />
+              {viewMode === 'edit' ? (
+                <textarea className="knowledge-textarea" value={content} readOnly={selected.readonly} onChange={(e) => setContent(e.target.value)} spellCheck={false} />
+              ) : (
+                <div className="knowledge-preview">
+                  <MessageRenderer content={content} />
+                </div>
+              )}
             </>
           ) : (
             <div className="knowledge-empty-state">选择左侧文件进行查看或编辑。</div>
