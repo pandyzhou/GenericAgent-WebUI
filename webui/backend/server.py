@@ -11,6 +11,7 @@ from agentmain import GeneraticAgent
 from frontends.continue_cmd import list_sessions, reset_conversation, extract_ui_messages, restore
 
 FRONTEND_DIST = os.path.join(ROOT, 'webui', 'frontend', 'dist')
+SERVER_STARTED_AT = time.time()
 
 app = Bottle()
 
@@ -182,6 +183,53 @@ def api_switch_llm():
         'llm_no': agent.llm_no,
         'llm_name': agent.get_llm_name(),
         'llms': get_llms(),
+    }
+
+
+def _dir_size(path):
+    if not os.path.exists(path):
+        return 0
+    total = 0
+    for root, _, files in os.walk(path):
+        for name in files:
+            try:
+                total += os.path.getsize(os.path.join(root, name))
+            except OSError:
+                pass
+    return total
+
+
+@app.get('/api/runtime')
+def api_runtime():
+    current_session = _current_session_path()
+    runs = []
+    with RUN_LOCK:
+        for run_id, info in RUNS.items():
+            events = info.get('events', []) or []
+            status = 'done'
+            if events:
+                status = events[-1].get('type', 'done')
+            runs.append({
+                'id': run_id,
+                'status': status,
+                'events': len(events),
+            })
+    return {
+        'ok': True,
+        'pid': os.getpid(),
+        'uptime_sec': int(time.time() - SERVER_STARTED_AT),
+        'running': bool(getattr(agent, 'running', False)),
+        'current_llm': getattr(agent, 'llm_name', lambda: '')(),
+        'current_llm_no': getattr(agent, 'llm_no', 0),
+        'history_count': len(getattr(agent, 'history', []) or []),
+        'active_runs': len(runs),
+        'current_session_path': os.path.relpath(current_session, ROOT).replace('\\', '/'),
+        'paths': {
+            'temp_size': _dir_size(os.path.join(ROOT, 'temp')),
+            'sessions_size': _dir_size(os.path.join(ROOT, 'temp', 'model_responses')),
+            'archives_size': _dir_size(os.path.join(ROOT, 'memory', 'L4_raw_sessions')),
+        },
+        'runs': runs,
     }
 
 

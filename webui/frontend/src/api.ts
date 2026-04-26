@@ -105,6 +105,20 @@ export type Provider = {
   context_win: number
 }
 
+export type RuntimeResponse = {
+  ok: boolean
+  pid: number
+  uptime_sec: number
+  running: boolean
+  current_llm: string
+  current_llm_no: number
+  history_count: number
+  active_runs: number
+  current_session_path: string
+  paths: { temp_size: number; sessions_size: number; archives_size: number }
+  runs: { id: string; status: string; events: number }[]
+}
+
 const API_BASE = 'http://127.0.0.1:18765'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -152,6 +166,7 @@ export const api = {
   providerTest: (key: string) =>
     request<{ ok: boolean; message?: string; error?: string; elapsed_ms?: number }>(`/api/providers/${key}/test`, { method: 'POST', body: '{}' }),
   reload: () => request<{ ok: boolean; llms: { index: number; name: string; current: boolean }[] }>('/api/reload', { method: 'POST', body: '{}' }),
+  runtime: () => request<RuntimeResponse>('/api/runtime'),
   knowledge: () => request<{ ok: boolean; groups: KnowledgeGroup[] }>('/api/knowledge'),
   knowledgeFile: (path: string) => request<KnowledgeFile>(`/api/knowledge/file?path=${encodeURIComponent(path)}`),
   saveKnowledgeFile: (path: string, content: string) => request<{ ok: boolean; backup: string; size: number; mtime: number }>('/api/knowledge/file', {

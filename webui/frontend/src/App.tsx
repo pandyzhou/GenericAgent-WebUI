@@ -596,6 +596,85 @@ function KnowledgePage({ section }: { section: string }) {
   )
 }
 
+function RuntimePage({ currentLlm, stopRun, running, historyCount }: { currentLlm: string; stopRun: () => Promise<void>; running: boolean; historyCount: number }) {
+  const [runtime, setRuntime] = useState<RuntimeResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await api.runtime()
+      setRuntime(res)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load().catch(() => undefined) }, [load])
+
+  const formatDuration = (sec: number) => {
+    const h = Math.floor(sec / 3600)
+    const m = Math.floor((sec % 3600) / 60)
+    const s = sec % 60
+    return `${h}h ${m}m ${s}s`
+  }
+
+  const items = [
+    { label: '运行状态', value: runtime ? resolveRunState(running, running ? 'streaming' : 'idle', runtime.running) : (running ? '运行中' : '空闲') },
+    { label: '当前模型', value: runtime?.current_llm || currentLlm || '未知' },
+    { label: '历史条数', value: String(runtime?.history_count ?? historyCount ?? 0) },
+    { label: '活跃 Run', value: String(runtime?.active_runs ?? 0) },
+  ]
+
+  return (
+    <div className="runtime-page">
+      <div className="settings-breadcrumb">实例管理</div>
+      <div className="runtime-head">
+        <h2 className="settings-title" style={{ margin: 0 }}>运行资源</h2>
+        <div className="runtime-actions">
+          <button onClick={load}>{loading ? '刷新中...' : '刷新'}</button>
+          <button className="danger" disabled={!running} onClick={stopRun}>停止当前任务</button>
+        </div>
+      </div>
+
+      <div className="runtime-grid">
+        {items.map((item) => (
+          <div className="runtime-card" key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
+      </div>
+
+      <div className="runtime-grid runtime-grid--wide">
+        <div className="runtime-card runtime-card--info">
+          <span>进程信息</span>
+          <strong>PID {runtime?.pid ?? '—'}</strong>
+          <p>运行时长：{runtime ? formatDuration(runtime.uptime_sec) : '—'}</p>
+          <p>当前会话：{runtime?.current_session_path || '—'}</p>
+        </div>
+        <div className="runtime-card runtime-card--info">
+          <span>目录占用</span>
+          <p>temp：{formatFileSize(runtime?.paths.temp_size || 0)}</p>
+          <p>会话日志：{formatFileSize(runtime?.paths.sessions_size || 0)}</p>
+          <p>L4 归档：{formatFileSize(runtime?.paths.archives_size || 0)}</p>
+        </div>
+      </div>
+
+      <div className="runtime-card runtime-runs">
+        <span>活跃 Run</span>
+        {runtime?.runs.length ? runtime.runs.map((r) => (
+          <div className="runtime-run-row" key={r.id}>
+            <strong>{r.id.slice(0, 8)}</strong>
+            <span>{r.status}</span>
+            <small>{r.events} events</small>
+          </div>
+        )) : <div className="storage-empty">暂无活跃 Run</div>}
+      </div>
+    </div>
+  )
+}
+
 function StoragePage() {
   const [groups, setGroups] = useState<StorageGroup[]>([])
   const [totalSize, setTotalSize] = useState(0)
@@ -1298,6 +1377,7 @@ export default function App() {
             <main className="settings-main">
               <SettingsPanel active={settingsSection === "providers"}><ProvidersPage currentLlm={currentLlm} /></SettingsPanel>
               <SettingsPanel active={settingsSection === "storage"}><StoragePage /></SettingsPanel>
+              <SettingsPanel active={settingsSection === "runtime"}><RuntimePage currentLlm={currentLlm} stopRun={stopRun} running={busy || Boolean(status?.running)} historyCount={status?.history_count ?? 0} /></SettingsPanel>
               <SettingsPanel active={settingsSection === "prompts"}><KnowledgePage section="prompts" /></SettingsPanel>
               <SettingsPanel active={settingsSection === "memory"}><KnowledgePage section="memory" /></SettingsPanel>
               <SettingsPanel active={settingsSection === "sop"}><KnowledgePage section="sop" /></SettingsPanel>
@@ -1354,7 +1434,7 @@ export default function App() {
                 </div>
               </SettingsPanel>
               {[...personalSettings, ...instanceSettings]
-                .filter((item) => !["providers", "storage", "prompts", "memory", "sop", "skills-settings", "about", "appearance"].includes(item.key))
+                .filter((item) => !["providers", "storage", "runtime", "prompts", "memory", "sop", "skills-settings", "about", "appearance"].includes(item.key))
                 .map((item) => (
                   <SettingsPanel key={item.key} active={settingsSection === item.key}>
                     <div className="settings-placeholder">
