@@ -2158,6 +2158,27 @@ button:disabled {
   gap: 8px;
 }
 
+.runtime-actions button {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.runtime-actions button:hover {
+  background: var(--blue-soft);
+}
+
+.runtime-actions button.danger {
+  border-color: #fa5252;
+  background: #fa5252;
+  color: #fff;
+}
+
 .runtime-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
