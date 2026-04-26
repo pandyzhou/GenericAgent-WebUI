@@ -44,19 +44,22 @@ function SettingsPanel({ active, children }: { active: boolean; children: React.
 }
 
 const personalSettings: SettingsItem[] = [
-  { label: "外观与界面", key: "appearance", icon: "appearance", group: "个人设置" },
-  { label: "模型提供商", key: "providers", icon: "providers", group: "个人设置" },
+  { label: "个人资料", key: "profile", icon: "profile", group: "个人设置" },
+  { label: "通知", key: "notifications", icon: "notifications" },
+  { label: "外观与界面", key: "appearance", icon: "appearance" },
+  { label: "IM 网关", key: "gateway", icon: "gateway" },
 ]
 
 const instanceSettings: SettingsItem[] = [
-  { label: "系统提示词", key: "prompts", icon: "prompt", group: "实例管理" },
-  { label: "记忆", key: "memory", icon: "memory", group: "实例管理" },
-  { label: "SOP", key: "sop", icon: "sop", group: "实例管理" },
-  { label: "技能", key: "skills-settings", icon: "skills", group: "实例管理" },
-  { label: "储存空间", key: "storage", icon: "storage", group: "实例管理" },
-  { label: "运行资源", key: "runtime", icon: "runtime", group: "实例管理" },
-  { label: "使用历史", key: "usage", icon: "usage", group: "实例管理" },
-  { label: "关于", key: "about", icon: "about", group: "实例管理" },
+  { label: "提供商", key: "providers", icon: "providers", group: "实例管理" },
+  { label: "系统提示词", key: "prompts", icon: "prompt" },
+  { label: "记忆", key: "memory", icon: "memory" },
+  { label: "SOP", key: "sop", icon: "sop" },
+  { label: "技能", key: "skills-settings", icon: "skills" },
+  { label: "储存空间", key: "storage", icon: "storage" },
+  { label: "运行资源", key: "runtime", icon: "runtime" },
+  { label: "使用历史", key: "usage", icon: "usage" },
+  { label: "关于", key: "about", icon: "about" },
 ]
 
 const mainNavItems: { label: string; page?: Page; icon: IconName }[] = [
@@ -141,6 +144,106 @@ const TYPE_LABELS: Record<string, string> = {
   native_oai: "Native OAI",
   oai: "OAI 兼容",
   claude: "Claude",
+}
+
+function ProviderEditForm({
+  draft,
+  setDraft,
+  adding,
+  providerKey,
+  modelsCache,
+  modelsLoadingKey,
+  fetchModels,
+  testResult,
+  testLoadingKey,
+  testConnection,
+  cancelEdit,
+  saveEdit,
+}: {
+  draft: Partial<Provider> & { apikey?: string }
+  setDraft: React.Dispatch<React.SetStateAction<Partial<Provider> & { apikey?: string }>>
+  adding: boolean
+  providerKey: string | null
+  modelsCache: Record<string, string[]>
+  modelsLoadingKey: string | null
+  fetchModels: (key: string, force?: boolean) => Promise<void>
+  testResult: { ok: boolean; msg: string; elapsed?: number } | null
+  testLoadingKey: string | null
+  testConnection: (key: string) => Promise<void>
+  cancelEdit: () => void
+  saveEdit: () => Promise<void>
+}) {
+  const cachedModels = providerKey ? (modelsCache[providerKey] || []) : []
+  return (
+    <div className="prov-edit-form">
+      <div className="prov-edit-grid">
+        <label>名称<input value={draft.name || ""} onChange={(e) => setDraft((prev) => ({ ...prev, name: e.target.value }))} /></label>
+        <label>类型
+          <select value={draft.type || "oai"} onChange={(e) => setDraft((prev) => ({ ...prev, type: e.target.value }))}>
+            <option value="oai">OAI 兼容</option>
+            <option value="native_claude">Native Claude</option>
+            <option value="native_oai">Native OAI</option>
+            <option value="claude">Claude</option>
+          </select>
+        </label>
+        <label>API Key<input type="password" placeholder={adding ? "输入 API Key" : "留空则不修改"} value={draft.apikey || ""} onChange={(e) => setDraft((prev) => ({ ...prev, apikey: e.target.value }))} /></label>
+        <label>API Base URL<input value={draft.apibase || ""} onChange={(e) => setDraft((prev) => ({ ...prev, apibase: e.target.value }))} /></label>
+        <label className="prov-model-field">
+          模型
+          <div className="prov-model-row">
+            {cachedModels.length > 0 ? (
+              <select value={draft.model || ""} onChange={(e) => setDraft((prev) => ({ ...prev, model: e.target.value }))}>
+                <option value="">选择模型...</option>
+                {cachedModels.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+            ) : (
+              <input value={draft.model || ""} onChange={(e) => setDraft((prev) => ({ ...prev, model: e.target.value }))} />
+            )}
+            {providerKey && (
+              <button type="button" className="prov-btn-sm" disabled={modelsLoadingKey === providerKey} onClick={() => fetchModels(providerKey, true)}>
+                {modelsLoadingKey === providerKey ? "获取中..." : cachedModels.length ? "刷新模型列表" : "获取模型列表"}
+              </button>
+            )}
+          </div>
+        </label>
+        {(draft.type === "oai" || draft.type === "native_oai") && (
+          <label>API Mode
+            <select value={draft.api_mode || "chat_completions"} onChange={(e) => setDraft((prev) => ({ ...prev, api_mode: e.target.value }))}>
+              <option value="chat_completions">chat_completions</option>
+              <option value="responses">responses</option>
+            </select>
+          </label>
+        )}
+        <label>Reasoning Effort
+          <select value={draft.reasoning_effort || ""} onChange={(e) => setDraft((prev) => ({ ...prev, reasoning_effort: e.target.value }))}>
+            <option value="">无</option>
+            <option value="none">none</option>
+            <option value="low">low</option>
+            <option value="medium">medium</option>
+            <option value="high">high</option>
+            <option value="xhigh">xhigh</option>
+          </select>
+        </label>
+      </div>
+      <div className="prov-edit-actions">
+        {providerKey && (
+          <button type="button" className={`prov-btn-sm ${testLoadingKey === providerKey ? "" : "prov-btn-outline"}`} disabled={testLoadingKey === providerKey} onClick={() => testConnection(providerKey)}>
+            {testLoadingKey === providerKey ? "测试中..." : "测试连接"}
+          </button>
+        )}
+        {testResult && (
+          <div className={`prov-test-card ${testResult.ok ? "is-ok" : "is-err"}`}>
+            <strong>{testResult.ok ? "连接正常" : "连接失败"}</strong>
+            <span>{testResult.msg}</span>
+            {testResult.elapsed ? <small>{testResult.elapsed} ms</small> : null}
+          </div>
+        )}
+        <span style={{ flex: 1 }} />
+        <button type="button" className="prov-btn-sm" onClick={cancelEdit}>取消</button>
+        <button type="button" className="prov-btn-sm prov-btn-primary" onClick={saveEdit}>保存</button>
+      </div>
+    </div>
+  )
 }
 
 const ProvidersPage = ({ currentLlm }: { currentLlm: string }) => {
@@ -232,80 +335,6 @@ const ProvidersPage = ({ currentLlm }: { currentLlm: string }) => {
 
   const currentModelName = useMemo(() => providers.find((p) => p.model && p.model === currentLlm)?.model || null, [providers, currentLlm])
 
-  const EditForm = ({ providerKey }: { providerKey: string | null }) => {
-    const cachedModels = providerKey ? (modelsCache[providerKey] || []) : []
-    return (
-    <div className="prov-edit-form">
-      <div className="prov-edit-grid">
-        <label>名称<input value={draft.name || ""} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></label>
-        <label>类型
-          <select value={draft.type || "oai"} onChange={(e) => setDraft({ ...draft, type: e.target.value })}>
-            <option value="oai">OAI 兼容</option>
-            <option value="native_claude">Native Claude</option>
-            <option value="native_oai">Native OAI</option>
-            <option value="claude">Claude</option>
-          </select>
-        </label>
-        <label>API Key<input type="password" placeholder={adding ? "输入 API Key" : "留空则不修改"} value={draft.apikey || ""} onChange={(e) => setDraft({ ...draft, apikey: e.target.value })} /></label>
-        <label>API Base URL<input value={draft.apibase || ""} onChange={(e) => setDraft({ ...draft, apibase: e.target.value })} /></label>
-        <label className="prov-model-field">
-          模型
-          <div className="prov-model-row">
-            {cachedModels.length > 0 ? (
-              <select value={draft.model || ""} onChange={(e) => setDraft({ ...draft, model: e.target.value })}>
-                <option value="">选择模型...</option>
-                {cachedModels.map((m) => <option key={m} value={m}>{m}</option>)}
-              </select>
-            ) : (
-              <input value={draft.model || ""} onChange={(e) => setDraft({ ...draft, model: e.target.value })} />
-            )}
-            {providerKey && (
-              <button type="button" className="prov-btn-sm" disabled={modelsLoadingKey === providerKey} onClick={() => fetchModels(providerKey, true)}>
-                {modelsLoadingKey === providerKey ? "获取中..." : cachedModels.length ? "刷新模型列表" : "获取模型列表"}
-              </button>
-            )}
-          </div>
-        </label>
-        {(draft.type === "oai" || draft.type === "native_oai") && (
-          <label>API Mode
-            <select value={draft.api_mode || "chat_completions"} onChange={(e) => setDraft({ ...draft, api_mode: e.target.value })}>
-              <option value="chat_completions">chat_completions</option>
-              <option value="responses">responses</option>
-            </select>
-          </label>
-        )}
-        <label>Reasoning Effort
-          <select value={draft.reasoning_effort || ""} onChange={(e) => setDraft({ ...draft, reasoning_effort: e.target.value })}>
-            <option value="">无</option>
-            <option value="none">none</option>
-            <option value="low">low</option>
-            <option value="medium">medium</option>
-            <option value="high">high</option>
-            <option value="xhigh">xhigh</option>
-          </select>
-        </label>
-      </div>
-      <div className="prov-edit-actions">
-        {providerKey && (
-          <button type="button" className={`prov-btn-sm ${testLoadingKey === providerKey ? "" : "prov-btn-outline"}`} disabled={testLoadingKey === providerKey} onClick={() => testConnection(providerKey)}>
-            {testLoadingKey === providerKey ? "测试中..." : "测试连接"}
-          </button>
-        )}
-        {testResult && (
-          <div className={`prov-test-card ${testResult.ok ? "is-ok" : "is-err"}`}>
-            <strong>{testResult.ok ? "连接正常" : "连接失败"}</strong>
-            <span>{testResult.msg}</span>
-            {testResult.elapsed ? <small>{testResult.elapsed} ms</small> : null}
-          </div>
-        )}
-        <span style={{ flex: 1 }} />
-        <button type="button" className="prov-btn-sm" onClick={cancelEdit}>取消</button>
-        <button type="button" className="prov-btn-sm prov-btn-primary" onClick={saveEdit}>保存</button>
-      </div>
-    </div>
-    )
-  }
-
   return (
     <div className="appearance-page">
       <div className="settings-breadcrumb">实例管理</div>
@@ -316,7 +345,25 @@ const ProvidersPage = ({ currentLlm }: { currentLlm: string }) => {
 
       {loading && <p style={{ color: "var(--muted)" }}>加载中...</p>}
 
-      {adding && <div className="prov-card prov-card-editing"><div className="prov-card-head"><span className="prov-card-name">新建提供商</span></div><EditForm providerKey={null} /></div>}
+      {adding && (
+        <div className="prov-card prov-card-editing">
+          <div className="prov-card-head"><span className="prov-card-name">新建提供商</span></div>
+          <ProviderEditForm
+            draft={draft}
+            setDraft={setDraft}
+            adding={adding}
+            providerKey={null}
+            modelsCache={modelsCache}
+            modelsLoadingKey={modelsLoadingKey}
+            fetchModels={fetchModels}
+            testResult={testResult}
+            testLoadingKey={testLoadingKey}
+            testConnection={testConnection}
+            cancelEdit={cancelEdit}
+            saveEdit={saveEdit}
+          />
+        </div>
+      )}
 
       {providers.map((p) => {
         const modelLines = [p.model].filter(Boolean)
@@ -348,7 +395,22 @@ const ProvidersPage = ({ currentLlm }: { currentLlm: string }) => {
                 <button type="button" className="prov-icon-action is-danger" onClick={() => deleteProvider(p.key)}>删除</button>
               </div>
             </div>
-            {editingKey === p.key && <EditForm providerKey={p.key} />}
+            {editingKey === p.key && (
+              <ProviderEditForm
+                draft={draft}
+                setDraft={setDraft}
+                adding={adding}
+                providerKey={p.key}
+                modelsCache={modelsCache}
+                modelsLoadingKey={modelsLoadingKey}
+                fetchModels={fetchModels}
+                testResult={testResult}
+                testLoadingKey={testLoadingKey}
+                testConnection={testConnection}
+                cancelEdit={cancelEdit}
+                saveEdit={saveEdit}
+              />
+            )}
           </div>
         )
       })}
@@ -973,10 +1035,10 @@ export default function App() {
   const slashMenuRef = useRef<HTMLDivElement | null>(null)
   const chatListRef = useRef<HTMLDivElement | null>(null)
 
-  const [cmdOpen, setCmdOpen] = useState(false)
-  const [cmdQuery, setCmdQuery] = useState("")
-  const [cmdIndex, setCmdIndex] = useState(0)
-  const cmdInputRef = useRef<HTMLInputElement | null>(null)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchIndex, setSearchIndex] = useState(0)
+  const searchInputRef = useRef<HTMLInputElement | null>(null)
 
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem("ga_theme") as Theme) || "light")
   const [oled, setOled] = useState(() => localStorage.getItem("ga_oled") === "true")
@@ -1012,22 +1074,9 @@ export default function App() {
     const onFullscreenChange = () => {
       setFullscreen(Boolean(document.fullscreenElement))
     }
+
     document.addEventListener("fullscreenchange", onFullscreenChange)
     return () => document.removeEventListener("fullscreenchange", onFullscreenChange)
-  }, [])
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'k' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault()
-        setCmdOpen((prev) => !prev)
-      }
-      if (e.key === 'Escape') {
-        setCmdOpen(false)
-      }
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
   }, [])
 
   useEffect(() => {
@@ -1125,6 +1174,20 @@ export default function App() {
       window.removeEventListener('click', close)
       window.removeEventListener('scroll', close, true)
     }
+  }, [])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setSearchOpen((prev) => !prev)
+      }
+      if (e.key === 'Escape') {
+        setSearchOpen(false)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [])
 
   const send = async () => {
@@ -1349,6 +1412,15 @@ export default function App() {
     const trimmed = prompt.trimStart()
     const head = trimmed.split(/\s+/)[0].toLowerCase()
     const argPart = trimmed.slice(head.length).trim()
+    if (head === '/llm' && argPart.length === 0) {
+      return (status?.llms || []).map((llm) => ({
+        name: `/llm ${llm.index}`,
+        insert: `/llm ${llm.index}`,
+        desc: llm.name,
+        kind: 'local' as const,
+        group: '模型' as const,
+      }))
+    }
     if (head === '/continue' && argPart.length === 0) {
       return sessions.slice(0, 8).map((s) => ({
         name: `/continue ${s.index}`,
@@ -1359,24 +1431,7 @@ export default function App() {
       }))
     }
     return slashCommands.filter((cmd) => cmd.name.toLowerCase().startsWith(head) || cmd.insert.toLowerCase().startsWith(head)).slice(0, 8)
-  }, [prompt, sessions])
-
-  const cmdResults = useMemo(() => {
-    const q = cmdQuery.trim().toLowerCase()
-    if (!q) return []
-    const items: { type: 'session' | 'setting'; title: string; subtitle: string; action: () => void }[] = []
-    sessions.forEach((s) => {
-      if ([s.preview, s.path, `${s.rounds}`].some((v) => String(v || '').toLowerCase().includes(q))) {
-        items.push({ type: 'session', title: s.preview || '未命名会话', subtitle: `${s.rounds} 轮 · ${formatRelativeTime(s.mtime)}`, action: () => { setCmdOpen(false); openSession(s.index) } })
-      }
-    })
-    ;[...personalSettings, ...instanceSettings].forEach((s) => {
-      if ([s.label, s.key].some((v) => String(v || '').toLowerCase().includes(q))) {
-        items.push({ type: 'setting', title: s.label, subtitle: '设置', action: () => { setCmdOpen(false); setPage('settings'); setSettingsSection(s.key) } })
-      }
-    })
-    return items.slice(0, 12)
-  }, [cmdQuery, sessions])
+  }, [prompt, status?.llms, sessions])
 
   const slashOpen = filteredSlashCommands.length > 0 && prompt.startsWith("/") && !busy
 
@@ -1398,6 +1453,33 @@ export default function App() {
       container.scrollTop = bottom - container.clientHeight + 4
     }
   }, [slashIndex, slashOpen])
+
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return []
+    const items: { type: string; title: string; subtitle: string; action: () => void }[] = []
+    sessions.forEach((s) => {
+      if ([s.preview, s.path, `${s.rounds}`].some((v) => String(v || '').toLowerCase().includes(q))) {
+        items.push({ type: 'session', title: s.preview || '未命名会话', subtitle: `${s.rounds} 轮 · ${formatRelativeTime(s.mtime)}`, action: () => { openSession(s.index); setSearchOpen(false) } })
+      }
+    })
+    ;[...personalSettings, ...instanceSettings].forEach((s) => {
+      if ([s.label, s.key].some((v) => String(v || '').toLowerCase().includes(q))) {
+        items.push({ type: 'setting', title: s.label, subtitle: '设置', action: () => { setPage('settings'); setSettingsSection(s.key); setSearchOpen(false) } })
+      }
+    })
+    return items.slice(0, 12)
+  }, [searchQuery, sessions])
+
+  useEffect(() => {
+    setSearchIndex(0)
+  }, [searchQuery])
+
+  useEffect(() => {
+    if (!searchOpen) return
+    const el = searchInputRef.current
+    if (el) el.focus()
+  }, [searchOpen])
 
   const Toggle = ({ checked, onChange, title, desc }: { checked: boolean; onChange: () => void; title: string; desc?: string }) => (
     <label className="nf-switch-row">
@@ -1434,7 +1516,7 @@ export default function App() {
         <div className="topbar-right">
           <span className="topbar-version">{status?.running ? "运行中" : "空闲"}</span>
           <a className="topbar-action" href={WEBUI_ISSUES_URL} target="_blank" rel="noreferrer" title="提交 Issue">GitHub</a>
-          <div className="topbar-search" onClick={() => { setCmdOpen(true); setCmdQuery(''); setCmdIndex(0) }}>
+          <div className="topbar-search" onClick={() => { setSearchOpen(true); setSearchQuery('') }}>
             <input placeholder="搜索会话与消息..." readOnly />
             <span>⌕</span>
           </div>
@@ -1745,7 +1827,7 @@ export default function App() {
 
       {contextMenu && (
         <div className="context-menu" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={(e) => e.stopPropagation()}>
-          {contextMenu.type === 'session' && contextMenu.sessionIndex !== undefined && (
+          {contextMenu.type === 'session' && contextMenu.sessionIndex && (
             <>
               <button onClick={() => { openSession(contextMenu.sessionIndex!); setContextMenu(null) }}>打开对话</button>
               <button className="is-danger" onClick={() => deleteSession(contextMenu.sessionIndex!)}>删除对话</button>
@@ -1760,47 +1842,53 @@ export default function App() {
         </div>
       )}
 
-      {cmdOpen && (
-        <div className="cmd-overlay" onClick={() => setCmdOpen(false)}>
+      {searchOpen && (
+        <div className="cmd-palette-overlay" onClick={() => setSearchOpen(false)}>
           <div className="cmd-palette" onClick={(e) => e.stopPropagation()}>
-            <div className="cmd-search">
-              <span className="cmd-icon">⌕</span>
+            <div className="cmd-palette-input">
+              <span>⌕</span>
               <input
-                autoFocus
-                placeholder="搜索会话、设置、知识..."
-                value={cmdQuery}
-                onChange={(e) => { setCmdQuery(e.target.value); setCmdIndex(0) }}
+                ref={searchInputRef}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="搜索会话、设置..."
                 onKeyDown={(e) => {
-                  if (e.key === 'Escape') { setCmdOpen(false); return }
-                  if (e.key === 'ArrowDown') { e.preventDefault(); setCmdIndex((i) => (i + 1) % Math.max(cmdResults.length, 1)); return }
-                  if (e.key === 'ArrowUp') { e.preventDefault(); setCmdIndex((i) => (i - 1 + Math.max(cmdResults.length, 1)) % Math.max(cmdResults.length, 1)); return }
-                  if (e.key === 'Enter') { e.preventDefault(); cmdResults[cmdIndex]?.action?.(); return }
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault()
+                    setSearchIndex((prev) => (prev + 1) % Math.max(searchResults.length, 1))
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault()
+                    setSearchIndex((prev) => (prev - 1 + Math.max(searchResults.length, 1)) % Math.max(searchResults.length, 1))
+                  } else if (e.key === 'Enter') {
+                    e.preventDefault()
+                    const item = searchResults[searchIndex]
+                    if (item) { item.action(); setSearchOpen(false) }
+                  } else if (e.key === 'Escape') {
+                    setSearchOpen(false)
+                  }
                 }}
               />
-              <span className="cmd-hint">Esc</span>
+              <kbd>Ctrl K</kbd>
             </div>
-            <div className="cmd-results">
-              {cmdResults.length === 0 && (
-                <div className="cmd-empty">{cmdQuery.trim() ? '未找到匹配项' : '输入关键词搜索会话、设置项或知识文件'}</div>
-              )}
-              {cmdResults.map((r, i) => (
-                <button
-                  key={`${r.type}-${i}`}
-                  className={`cmd-result ${i === cmdIndex ? 'is-active' : ''}`}
-                  onMouseEnter={() => setCmdIndex(i)}
-                  onClick={() => r.action()}
-                >
-                  <span className="cmd-result-type">{r.type === 'session' ? '会话' : '设置'}</span>
-                  <span className="cmd-result-title">{r.title}</span>
-                  <span className="cmd-result-sub">{r.subtitle}</span>
-                </button>
-              ))}
-            </div>
-            <div className="cmd-footer">
-              <span>↑↓ 选择</span>
-              <span>Enter 跳转</span>
-              <span>Esc 关闭</span>
-            </div>
+            {searchResults.length > 0 && (
+              <div className="cmd-palette-results">
+                {searchResults.map((r, i) => (
+                  <button
+                    key={`${r.type}-${i}`}
+                    className={`cmd-item ${i === searchIndex ? 'is-active' : ''}`}
+                    onMouseEnter={() => setSearchIndex(i)}
+                    onClick={() => { r.action(); setSearchOpen(false) }}
+                  >
+                    <span className="cmd-item-type">{r.type === 'session' ? '会话' : '设置'}</span>
+                    <span className="cmd-item-title">{r.title}</span>
+                    <span className="cmd-item-subtitle">{r.subtitle}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {searchQuery.trim() && searchResults.length === 0 && (
+              <div className="cmd-palette-empty">未找到匹配结果</div>
+            )}
           </div>
         </div>
       )}
