@@ -2823,9 +2823,14 @@ button:disabled {
   color: #2f9e44;
 }
 
-.im-runtime-status.is-stopped {
-  background: rgba(250, 82, 82, 0.1);
-  color: #e03131;
+.im-auto-restart-tag {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(34, 139, 230, 0.12);
+  color: #1c7ed6;
 }
 
 .im-runtime-meta {
@@ -2843,20 +2848,70 @@ button:disabled {
   color: var(--dimmed);
 }
 
-.im-log-tail {
-  margin: 8px 0 0;
-  padding: 10px;
-  border-radius: 8px;
-  background: var(--bg);
-  border: 1px solid var(--border-soft);
-  color: var(--dimmed);
+.im-log-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.48);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1200;
+}
+
+.im-log-modal {
+  width: min(960px, 100%);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.im-log-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.im-log-modal-head h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+
+.im-log-modal-path {
   font-size: 12px;
-  line-height: 1.5;
+  color: var(--muted);
+  word-break: break-all;
+}
+
+.im-log-modal-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.im-log-modal-tip {
+  padding: 10px 18px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.im-log-modal-body {
+  margin: 0;
+  padding: 16px 18px 20px;
+  overflow: auto;
   white-space: pre-wrap;
   word-break: break-word;
   font-family: "Cascadia Code", Consolas, monospace;
-  max-height: 180px;
-  overflow: auto;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text);
 }
 
 .im-channel-fields {

@@ -1063,6 +1063,7 @@ function GatewayPage() {
   const [testing, setTesting] = useState<string | null>(null)
   const [operating, setOperating] = useState<string | null>(null)
   const [statuses, setStatuses] = useState<Record<string, ImChannelStatus>>({})
+  const [logViewer, setLogViewer] = useState<{ channel: string; title: string; path: string; content: string; truncated: boolean; loading: boolean } | null>(null)
   const [testResult, setTestResult] = useState<{ key: string; ok: boolean; message: string } | null>(null)
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({})
 
@@ -1156,6 +1157,21 @@ function GatewayPage() {
     setOperating(null)
   }
 
+  const openLogViewer = async (key: string, title: string) => {
+    setLogViewer({ channel: key, title, path: '', content: '', truncated: false, loading: true })
+    try {
+      const res = await api.imLog(key)
+      setLogViewer({ channel: key, title, path: res.log_path, content: res.content, truncated: res.truncated, loading: false })
+    } catch (e: any) {
+      setLogViewer({ channel: key, title, path: '', content: e.message || '日志加载失败', truncated: false, loading: false })
+    }
+  }
+
+  const refreshLogViewer = async () => {
+    if (!logViewer) return
+    await openLogViewer(logViewer.channel, logViewer.title)
+  }
+
   return (
     <div className="appearance-page">
       <div className="settings-breadcrumb">个人设置</div>
@@ -1178,6 +1194,7 @@ function GatewayPage() {
                 <strong>{ch.name}</strong>
                 <span className={`im-channel-status ${ch.configured ? 'is-on' : ''}`}>{ch.configured ? '已配置' : '未配置'}</span>
                 <span className={`im-runtime-status ${status?.running ? 'is-running' : 'is-stopped'}`}>{status?.running ? '运行中' : '未运行'}</span>
+                {status?.auto_restart ? <span className="im-auto-restart-tag">自动恢复</span> : null}
               </div>
               {ch.note ? (
                 <span className="im-channel-note">{ch.note}</span>
@@ -1203,6 +1220,9 @@ function GatewayPage() {
                       {testing === ch.key ? '测试中...' : '测试连接'}
                     </button>
                   )}
+                  <button className="prov-btn-sm" onClick={() => openLogViewer(ch.key, ch.name)}>
+                    查看日志
+                  </button>
                   <button className="prov-btn-sm" onClick={() => editing === ch.key ? cancelEdit() : startEdit(ch)}>
                     {editing === ch.key ? '收起' : '编辑'}
                   </button>
@@ -1281,6 +1301,25 @@ function GatewayPage() {
           )
         })}
       </div>
+
+      {logViewer && (
+        <div className="im-log-modal-backdrop" onClick={() => setLogViewer(null)}>
+          <div className="im-log-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="im-log-modal-head">
+              <div>
+                <h3>{logViewer.title} 日志</h3>
+                <div className="im-log-modal-path">{logViewer.path || '暂无日志路径'}</div>
+              </div>
+              <div className="im-log-modal-actions">
+                <button className="prov-btn-sm" onClick={refreshLogViewer} disabled={logViewer.loading}>刷新</button>
+                <button className="prov-btn-sm" onClick={() => setLogViewer(null)}>关闭</button>
+              </div>
+            </div>
+            {logViewer.truncated && <div className="im-log-modal-tip">当前仅显示最近一部分日志内容。</div>}
+            <pre className="im-log-modal-body">{logViewer.loading ? '日志加载中...' : (logViewer.content || '暂无日志内容')}</pre>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

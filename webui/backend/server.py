@@ -18,7 +18,7 @@ app = Bottle()
 agent = GeneraticAgent()
 if agent.llmclient is None:
     raise RuntimeError('未配置可用的 LLM，请先配置 mykey.py 或 mykey.json')
-threading.Thread(target=agent.run, daemon=True).start()
+
 
 RUNS = {}
 RUN_LOCK = threading.Lock()
@@ -1182,6 +1182,7 @@ for ch in IM_CHANNEL_SCHEMA.values():
 
 IM_PROCESS_REGISTRY = {}
 IM_RUNTIME_DIR = os.path.join(ROOT, 'webui', 'temp', 'im_runtime')
+IM_STATE_PATH = os.path.join(IM_RUNTIME_DIR, 'state.json')
 GENERIC_AGENT_ROOT = os.path.abspath(os.path.join(ROOT, '..', 'GenericAgent'))
 GENERIC_AGENT_FRONTENDS = os.path.join(GENERIC_AGENT_ROOT, 'frontends')
 
@@ -1260,6 +1261,69 @@ def _read_log_tail(path, max_lines=8, max_chars=4000):
         return [f'读取日志失败: {e}']
 
 
+def _read_log_tail(path, max_lines=8, max_chars=4000):
+    if not path or not os.path.exists(path):
+        return []
+    try:
+        with open(path, 'r', encoding='utf-8', errors='replace') as f:
+            lines = f.readlines()
+        tail = [line.rstrip('\r\n') for line in lines[-max_lines:]]
+        text = '\n'.join(tail)
+        if len(text) > max_chars:
+            text = text[-max_chars:]
+            tail = text.splitlines()
+        return tail
+    except Exception as e:
+        return [f'读取日志失败: {e}']
+
+
+def _read_log_content(path, max_lines=200, max_chars=20000):
+    if not path or not os.path.exists(path):
+        return '', False
+    with open(path, 'r', encoding='utf-8', errors='replace') as f:
+        lines = f.readlines()
+    sliced = lines[-max_lines:] if max_lines > 0 else lines
+    content = ''.join(sliced)
+    truncated = len(lines) > len(sliced)
+    if max_chars > 0 and len(content) > max_chars:
+        content = content[-max_chars:]
+        truncated = True
+    return content, truncated
+
+
+def _load_im_state():
+    if not os.path.exists(IM_STATE_PATH):
+        return {'channels': {}}
+    try:
+        with open(IM_STATE_PATH, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        if isinstance(data, dict) and isinstance(data.get('channels'), dict):
+            return data
+    except Exception:
+        pass
+    return {'channels': {}}
+
+
+def _save_im_state(state):
+    _ensure_im_runtime_dir()
+    with open(IM_STATE_PATH, 'w', encoding='utf-8') as f:
+        json.dump(state, f, ensure_ascii=False, indent=2)
+
+
+def _update_im_state(channel, managed_by_webui=None, auto_restart=None):
+    state = _load_im_state()
+    channels = state.setdefault('channels', {})
+    current = channels.setdefault(channel, {})
+    runtime = IM_CHANNEL_RUNTIME.get(channel, {})
+    current['script'] = runtime.get('script', '')
+    if managed_by_webui is not None:
+        current['managed_by_webui'] = managed_by_webui
+    if auto_restart is not None:
+        current['auto_restart'] = auto_restart
+    current['updated_at'] = int(time.time())
+    _save_im_state(state)
+
+
 def _normalize_im_registry(channel):
     runtime = IM_CHANNEL_RUNTIME.get(channel, {})
     script = runtime.get('script', '')
@@ -1280,6 +1344,7 @@ def _normalize_im_registry(channel):
             entry['pid'] = None
             if not entry.get('message'):
                 entry['message'] = f'进程已退出，退出码 {code}'
+    state = _load_im_state().get('channels', {}).get(channel, {})
     return {
         'key': channel,
         'managed': bool(runtime.get('managed')),
@@ -1291,6 +1356,7 @@ def _normalize_im_registry(channel):
         'log_path': entry.get('log_path'),
         'log_tail': _read_log_tail(entry.get('log_path')),
         'message': entry.get('message', ''),
+        'auto_restart': bool(state.get('auto_restart')),
     }
 
 
@@ -1334,6 +1400,7 @@ def _start_im_process(channel):
         'log_path': log_path,
         'message': '已启动',
     }
+    _update_im_state(channel, managed_by_webui=True, auto_restart=True)
     time.sleep(0.4)
     return _normalize_im_registry(channel)
 
@@ -1354,9 +1421,31 @@ def _stop_im_process(channel):
     entry['process'] = None
     entry['pid'] = None
     entry['message'] = f'已停止（退出码 {proc.returncode}）'
+    _update_im_state(channel, managed_by_webui=True, auto_restart=False)
     return _normalize_im_registry(channel)
 
 
+def _restore_im_processes():
+    state = _load_im_state().get('channels', {})
+    for channel, meta in state.items():
+        if channel not in IM_CHANNEL_RUNTIME:
+            continue
+        if not meta.get('managed_by_webui') or not meta.get('auto_restart'):
+            continue
+        try:
+            _start_im_process(channel)
+            entry = IM_PROCESS_REGISTRY.get(channel)
+            if entry:
+                entry['message'] = '后端重启后已自动恢复'
+        except Exception as e:
+            IM_PROCESS_REGISTRY[channel] = {
+                'process': None,
+                'pid': None,
+                'started_at': None,
+                'last_exit_code': None,
+                'log_path': _im_log_path(channel),
+                'message': f'自动恢复失败: {e}',
+            }
 
     """Mask sensitive value, keep last N chars visible."""
     if not value or len(value) <= visible + 2:
@@ -1448,12 +1537,57 @@ def api_im_save_config():
         return {'ok': False, 'error': str(e)}
 
 
+def _restore_im_processes():
+    state = _load_im_state().get('channels', {})
+    for channel, meta in state.items():
+        if channel not in IM_CHANNEL_RUNTIME:
+            continue
+        if not meta.get('managed_by_webui') or not meta.get('auto_restart'):
+            continue
+        try:
+            _start_im_process(channel)
+            entry = IM_PROCESS_REGISTRY.get(channel)
+            if entry:
+                entry['message'] = '后端重启后已自动恢复'
+        except Exception as e:
+            IM_PROCESS_REGISTRY[channel] = {
+                'process': None,
+                'pid': None,
+                'started_at': None,
+                'last_exit_code': None,
+                'log_path': _im_log_path(channel),
+                'message': f'自动恢复失败: {e}',
+            }
+
+
+_restore_im_processes()
+
+
 @app.get('/api/im/status')
 def api_im_status():
     statuses = {}
     for key in IM_CHANNEL_SCHEMA.keys():
         statuses[key] = _normalize_im_registry(key)
     return {'ok': True, 'statuses': statuses}
+
+
+@app.get('/api/im/log/<channel>')
+def api_im_log(channel):
+    if channel not in IM_CHANNEL_SCHEMA:
+        response.status = 400
+        return {'ok': False, 'error': '未知渠道'}
+    status = _normalize_im_registry(channel)
+    lines = int(request.query.get('lines') or 200)
+    chars = int(request.query.get('chars') or 20000)
+    content, truncated = _read_log_content(status.get('log_path'), max_lines=lines, max_chars=chars)
+    return {
+        'ok': True,
+        'channel': channel,
+        'log_path': status.get('log_path'),
+        'exists': os.path.exists(status.get('log_path') or ''),
+        'content': content,
+        'truncated': truncated,
+    }
 
 
 @app.post('/api/im/start/<channel>')

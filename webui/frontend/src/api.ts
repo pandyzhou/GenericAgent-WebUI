@@ -158,6 +158,15 @@ export type ImStatusResponse = {
   statuses: Record<string, ImChannelStatus>
 }
 
+export type ImLogResponse = {
+  ok: boolean
+  channel: string
+  log_path: string
+  exists: boolean
+  content: string
+  truncated: boolean
+}
+
 const API_BASE = 'http://127.0.0.1:18765'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -249,6 +258,8 @@ export const api = {
       method: 'POST',
       body: '{}',
     }),
+  imLog: (channel: string, lines = 200, chars = 20000) =>
+    request<ImLogResponse>(`/api/im/log/${encodeURIComponent(channel)}?lines=${lines}&chars=${chars}`),
   imTest: (channel: string) =>
     request<{ ok: boolean; message?: string; error?: string }>(`/api/im/test/${encodeURIComponent(channel)}`, {
       method: 'POST',
