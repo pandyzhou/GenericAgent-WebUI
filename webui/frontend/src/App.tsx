@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react"
-import { api, SessionItem, StatusResponse, Provider, ChatMessage, KnowledgeGroup, KnowledgeItem, StorageGroup, StorageDetail, StorageCleanupResult } from "./api"
+import { api, SessionItem, StatusResponse, Provider, ChatMessage, KnowledgeGroup, KnowledgeItem, StorageGroup, StorageDetail, StorageCleanupResult, ImChannel } from "./api"
 import MessageRenderer from "./components/MessageRenderer"
 import "./styles/app.css"
 
