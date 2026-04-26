@@ -434,6 +434,17 @@ const normalizeNewChatMessage = (msg?: string) => {
   return cleaned || '已开启新对话，当前上下文已清空'
 }
 
+const normalizeSystemMessage = (msg?: string) => {
+  const text = String(msg || '').trim()
+  if (!text) return ''
+  if (text.includes('���') || text.includes('�')) {
+    if (text.includes('已开启新对话')) return '已开启新对话，当前上下文已清空'
+    if (text.includes('已打开当前会话')) return '已打开当前会话'
+    if (text.includes('已恢复')) return text.replace(/���|�/g, '').trim()
+  }
+  return text.replace(/^(✅|⚠️|❌|🆕|🔄|ℹ️|🚫|📁|🧠|📝)\s*/u, '').trim()
+}
+
 const knowledgeSectionMap: Record<string, { group: string; title: string; breadcrumb: string }> = {
   prompts: { group: "prompts", title: "系统提示词", breadcrumb: "实例管理" },
   memory: { group: "memory", title: "记忆", breadcrumb: "实例管理" },
@@ -1193,7 +1204,7 @@ export default function App() {
     setMessages(
       res.history?.length
         ? res.history.map((m) => ({ ...m, status: 'done' as const, createdAt: Date.now() }))
-        : [{ role: "system", content: res.message, createdAt: Date.now(), status: 'done' }]
+        : [{ role: "system", content: normalizeSystemMessage(res.message), createdAt: Date.now(), status: 'done' }]
     )
     setSelectedSessionIndex(index)
     setPage("session")
@@ -1238,7 +1249,7 @@ export default function App() {
   }
 
   const addSystemMessage = (content: string) => {
-    setMessages((prev) => [...prev, { role: "system", content, createdAt: Date.now(), status: 'done' }])
+    setMessages((prev) => [...prev, { role: "system", content: normalizeSystemMessage(content), createdAt: Date.now(), status: 'done' }])
   }
 
   const executeSlashCommand = async (raw: string): Promise<boolean> => {
