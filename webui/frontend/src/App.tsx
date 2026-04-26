@@ -414,8 +414,6 @@ const slashCommands: SlashCommand[] = [
   { name: "/restore", insert: "/restore", desc: "恢复上次对话历史（WebUI 中建议使用历史列表）", kind: "limited", group: "会话" },
   { name: "/continue", insert: "/continue", desc: "列出可恢复会话", kind: "local", group: "会话" },
   { name: "/continue [n]", insert: "/continue ", desc: "恢复第 n 个会话", kind: "local", group: "会话" },
-  { name: "/llm", insert: "/llm", desc: "查看模型列表", kind: "local", group: "模型" },
-  { name: "/llm [n]", insert: "/llm ", desc: "切换到第 n 个模型", kind: "local", group: "模型" },
   { name: "/resume", insert: "/resume", desc: "让 Agent 从最近历史中总结并恢复", kind: "agent", group: "Agent" },
   { name: "/session.<key>=<value>", insert: "/session.", desc: "设置当前 LLM session 属性", kind: "agent", group: "Agent" },
 ]
