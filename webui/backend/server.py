@@ -381,6 +381,22 @@ def _iter_storage_files(key):
 def _storage_summary(key):
     cfg = _storage_group(key)
     rel, base = _safe_storage_root(cfg['path'])
+    if key == 'frontend':
+        children = [x for x in [
+            _storage_child_item('webui/frontend/node_modules'),
+            _storage_child_item('webui/frontend/dist'),
+        ] if x]
+        return {
+            'key': key,
+            'label': cfg['label'],
+            'path': rel,
+            'size': sum(x['size'] for x in children),
+            'files': sum(int(x.get('files', 1)) for x in children),
+            'dirs': 2 if children else 0,
+            'mtime': max([x['mtime'] for x in children], default=0),
+            'cleanup': cfg['cleanup'],
+            'desc': cfg['desc'],
+        }
     files = _iter_storage_files(key)
     size = sum(os.path.getsize(p) for p in files if os.path.exists(p))
     mtimes = [os.path.getmtime(p) for p in files if os.path.exists(p)]
@@ -418,12 +434,40 @@ def api_storage():
     }
 
 
+def _storage_child_item(rel):
+    rel, abs_path = _safe_storage_root(rel)
+    if not os.path.exists(abs_path):
+        return None
+    if os.path.isfile(abs_path):
+        return _rel_file_item(abs_path)
+    size = 0
+    files = 0
+    latest = 0
+    for root, _, names in os.walk(abs_path):
+        for name in names:
+            p = os.path.join(root, name)
+            try:
+                st = os.stat(p)
+                size += st.st_size
+                files += 1
+                latest = max(latest, st.st_mtime)
+            except OSError:
+                pass
+    return {'path': rel, 'name': os.path.basename(rel), 'size': size, 'mtime': latest, 'files': files}
+
+
 @app.get('/api/storage/<key>')
 def api_storage_detail(key):
     try:
         group = _storage_summary(key)
-        files = sorted((_rel_file_item(p) for p in _iter_storage_files(key)), key=lambda x: x['size'], reverse=True)
-        return {'ok': True, 'group': group, 'largest': files[:20]}
+        if key == 'frontend':
+            files = [x for x in [
+                _storage_child_item('webui/frontend/node_modules'),
+                _storage_child_item('webui/frontend/dist'),
+            ] if x]
+        else:
+            files = sorted((_rel_file_item(p) for p in _iter_storage_files(key)), key=lambda x: x['size'], reverse=True)[:20]
+        return {'ok': True, 'group': group, 'largest': files}
     except Exception as e:
         response.status = 400
         return {'ok': False, 'error': str(e)}
