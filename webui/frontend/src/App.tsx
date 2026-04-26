@@ -548,6 +548,7 @@ function StoragePage() {
   const [cleanup, setCleanup] = useState<StorageCleanupResult | null>(null)
   const [days, setDays] = useState(7)
   const [loading, setLoading] = useState(true)
+  const [detailLoading, setDetailLoading] = useState(false)
 
   const selected = groups.find((g) => g.key === selectedKey)
   const cleanable = selected && selected.cleanup !== 'readonly'
@@ -571,10 +572,15 @@ function StoragePage() {
   useEffect(() => {
     if (!selectedKey) return
     const req = ++detailRequestRef.current
-    setDetail(null)
+    setDetailLoading(true)
     api.storageDetail(selectedKey)
-      .then((det) => { if (req === detailRequestRef.current && det.group.key === selectedKey) setDetail(det) })
+      .then((det) => {
+        if (req === detailRequestRef.current && det.group.key === selectedKey) setDetail(det)
+      })
       .catch(() => undefined)
+      .finally(() => {
+        if (req === detailRequestRef.current) setDetailLoading(false)
+      })
   }, [selectedKey])
 
   const selectGroup = (key: string) => {
@@ -616,6 +622,7 @@ function StoragePage() {
         </aside>
 
         <section className="storage-detail">
+          {detailLoading && <div className="storage-loading-mask">正在加载...</div>}
           {detail?.group ? (
             <>
               <div className="storage-detail-head">

@@ -2038,7 +2038,22 @@ button:disabled {
 }
 
 .storage-detail {
+  position: relative;
   padding: 16px;
+}
+
+.storage-loading-mask {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--muted);
+  font-size: 12px;
+  box-shadow: var(--shadow);
 }
 
 .storage-detail-head {
