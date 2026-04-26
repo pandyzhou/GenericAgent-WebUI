@@ -551,26 +551,43 @@ function StoragePage() {
 
   const selected = groups.find((g) => g.key === selectedKey)
   const cleanable = selected && selected.cleanup !== 'readonly'
+  const selectedKeyRef = useRef(selectedKey)
+  const detailRequestRef = useRef(0)
+  const overviewRequestRef = useRef(0)
+
+  useEffect(() => {
+    selectedKeyRef.current = selectedKey
+  }, [selectedKey])
+
+  const loadDetail = useCallback(async (key: string) => {
+    const req = ++detailRequestRef.current
+    const det = await api.storageDetail(key)
+    if (req === detailRequestRef.current) setDetail(det)
+  }, [])
 
   const load = useCallback(async () => {
+    const req = ++overviewRequestRef.current
     setLoading(true)
     const res = await api.storage()
+    if (req !== overviewRequestRef.current) return
     setGroups(res.groups)
     setTotalSize(res.total_size)
     setTotalFiles(res.total_files)
-    const nextKey = res.groups.find((g) => g.key === selectedKey)?.key || res.groups[0]?.key || 'sessions'
+    const current = selectedKeyRef.current
+    const nextKey = res.groups.find((g) => g.key === current)?.key || res.groups[0]?.key || 'sessions'
+    selectedKeyRef.current = nextKey
     setSelectedKey(nextKey)
-    const det = await api.storageDetail(nextKey)
-    setDetail(det)
-    setLoading(false)
-  }, [selectedKey])
+    await loadDetail(nextKey)
+    if (req === overviewRequestRef.current) setLoading(false)
+  }, [loadDetail])
 
   useEffect(() => { load().catch(() => setLoading(false)) }, [load])
 
-  const selectGroup = async (key: string) => {
+  const selectGroup = (key: string) => {
+    selectedKeyRef.current = key
     setSelectedKey(key)
     setCleanup(null)
-    setDetail(await api.storageDetail(key))
+    loadDetail(key).catch(() => undefined)
   }
 
   const runCleanup = async (dryRun: boolean, mode = 'older_than_days') => {
