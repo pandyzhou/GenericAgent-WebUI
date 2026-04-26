@@ -65,7 +65,6 @@ const instanceSettings: SettingsItem[] = [
 const mainNavItems: { label: string; page?: Page; icon: IconName }[] = [
   { label: "仪表盘", page: "dashboard", icon: "dashboard" },
   { label: "会话", page: "session", icon: "session" },
-  { label: "技能", icon: "skills" },
   { label: "工作区", icon: "workspace" },
 ]
 
