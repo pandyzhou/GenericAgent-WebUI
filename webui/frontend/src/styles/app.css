@@ -1352,7 +1352,6 @@ button:disabled {
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.12);
   backdrop-filter: blur(10px);
   overflow-y: auto;
-  overscroll-behavior: contain;
 }
 
 .slash-group + .slash-group {
@@ -2631,4 +2630,126 @@ button:disabled {
 .repo-inline-links a:hover {
   background: var(--blue-soft);
   border-color: var(--mantine-primary);
+}
+
+/* ── Command Palette ───────────────────────────────────────────────────────── */
+
+.cmd-palette-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: start center;
+  padding-top: 120px;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(4px);
+}
+
+.cmd-palette {
+  width: min(640px, 92vw);
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.cmd-palette-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.cmd-palette-input span {
+  color: var(--muted);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.cmd-palette-input input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.cmd-palette-input input::placeholder {
+  color: var(--muted);
+}
+
+.cmd-palette-input kbd {
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--subtle);
+  color: var(--muted);
+  font-size: 11px;
+  font-family: inherit;
+  flex-shrink: 0;
+}
+
+.cmd-palette-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.cmd-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.cmd-item:hover,
+.cmd-item.is-active {
+  background: var(--blue-soft);
+}
+
+.cmd-item-type {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--subtle);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.cmd-item-title {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cmd-item-subtitle {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.cmd-palette-empty {
+  padding: 20px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
 }

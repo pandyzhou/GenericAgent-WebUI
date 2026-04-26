@@ -976,6 +976,11 @@ export default function App() {
   const slashMenuRef = useRef<HTMLDivElement | null>(null)
   const chatListRef = useRef<HTMLDivElement | null>(null)
 
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchIndex, setSearchIndex] = useState(0)
+  const searchInputRef = useRef<HTMLInputElement | null>(null)
+
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem("ga_theme") as Theme) || "light")
   const [oled, setOled] = useState(() => localStorage.getItem("ga_oled") === "true")
   const [fullscreen, setFullscreen] = useState(() => localStorage.getItem("ga_fullscreen") === "true")
@@ -1110,6 +1115,20 @@ export default function App() {
       window.removeEventListener('click', close)
       window.removeEventListener('scroll', close, true)
     }
+  }, [])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setSearchOpen((prev) => !prev)
+      }
+      if (e.key === 'Escape') {
+        setSearchOpen(false)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [])
 
   const send = async () => {
@@ -1376,6 +1395,33 @@ export default function App() {
     }
   }, [slashIndex, slashOpen])
 
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return []
+    const items: { type: string; title: string; subtitle: string; action: () => void }[] = []
+    sessions.forEach((s) => {
+      if ([s.preview, s.path, `${s.rounds}`].some((v) => String(v || '').toLowerCase().includes(q))) {
+        items.push({ type: 'session', title: s.preview || '未命名会话', subtitle: `${s.rounds} 轮 · ${formatRelativeTime(s.mtime)}`, action: () => { openSession(s.index); setSearchOpen(false) } })
+      }
+    })
+    ;[...personalSettings, ...instanceSettings].forEach((s) => {
+      if ([s.label, s.key].some((v) => String(v || '').toLowerCase().includes(q))) {
+        items.push({ type: 'setting', title: s.label, subtitle: '设置', action: () => { setPage('settings'); setSettingsSection(s.key); setSearchOpen(false) } })
+      }
+    })
+    return items.slice(0, 12)
+  }, [searchQuery, sessions])
+
+  useEffect(() => {
+    setSearchIndex(0)
+  }, [searchQuery])
+
+  useEffect(() => {
+    if (!searchOpen) return
+    const el = searchInputRef.current
+    if (el) el.focus()
+  }, [searchOpen])
+
   const Toggle = ({ checked, onChange, title, desc }: { checked: boolean; onChange: () => void; title: string; desc?: string }) => (
     <label className="nf-switch-row">
       <span className={`nf-switch ${checked ? "is-on" : ""}`}>
@@ -1411,8 +1457,8 @@ export default function App() {
         <div className="topbar-right">
           <span className="topbar-version">{status?.running ? "运行中" : "空闲"}</span>
           <a className="topbar-action" href={WEBUI_ISSUES_URL} target="_blank" rel="noreferrer" title="提交 Issue">GitHub</a>
-          <div className="topbar-search">
-            <input placeholder="搜索会话与消息..." />
+          <div className="topbar-search" onClick={() => { setSearchOpen(true); setSearchQuery('') }}>
+            <input placeholder="搜索会话与消息..." readOnly />
             <span>⌕</span>
           </div>
         </div>
@@ -1734,6 +1780,57 @@ export default function App() {
               <button onClick={() => { setMessages(messages.slice(0, contextMenu.messageIndex! + 1)); setContextMenu(null) }}>仅收起后续消息</button>
             </>
           )}
+        </div>
+      )}
+
+      {searchOpen && (
+        <div className="cmd-palette-overlay" onClick={() => setSearchOpen(false)}>
+          <div className="cmd-palette" onClick={(e) => e.stopPropagation()}>
+            <div className="cmd-palette-input">
+              <span>⌕</span>
+              <input
+                ref={searchInputRef}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="搜索会话、设置..."
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault()
+                    setSearchIndex((prev) => (prev + 1) % Math.max(searchResults.length, 1))
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault()
+                    setSearchIndex((prev) => (prev - 1 + Math.max(searchResults.length, 1)) % Math.max(searchResults.length, 1))
+                  } else if (e.key === 'Enter') {
+                    e.preventDefault()
+                    const item = searchResults[searchIndex]
+                    if (item) { item.action(); setSearchOpen(false) }
+                  } else if (e.key === 'Escape') {
+                    setSearchOpen(false)
+                  }
+                }}
+              />
+              <kbd>Ctrl K</kbd>
+            </div>
+            {searchResults.length > 0 && (
+              <div className="cmd-palette-results">
+                {searchResults.map((r, i) => (
+                  <button
+                    key={`${r.type}-${i}`}
+                    className={`cmd-item ${i === searchIndex ? 'is-active' : ''}`}
+                    onMouseEnter={() => setSearchIndex(i)}
+                    onClick={() => { r.action(); setSearchOpen(false) }}
+                  >
+                    <span className="cmd-item-type">{r.type === 'session' ? '会话' : '设置'}</span>
+                    <span className="cmd-item-title">{r.title}</span>
+                    <span className="cmd-item-subtitle">{r.subtitle}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {searchQuery.trim() && searchResults.length === 0 && (
+              <div className="cmd-palette-empty">未找到匹配结果</div>
+            )}
+          </div>
         </div>
       )}
     </div>
