@@ -1,3 +1,13 @@
+@keyframes page-soft-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes panel-soft-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 :root {
   --mantine-primary: #4c6ef5;
   --bg: #f8f9fa;
@@ -188,6 +198,7 @@ button {
   font-size: 14px;
   font-weight: 400;
   text-align: left;
+  transition: background-color 140ms ease, color 140ms ease, transform 140ms ease;
 }
 
 .primary-nav-item:hover,
@@ -309,6 +320,59 @@ button {
   min-height: 0;
   overflow: auto;
   padding: 32px;
+}
+
+.settings-main > *,
+.dashboard-page,
+.session-layout,
+.settings-shell {
+  animation: page-soft-in 160ms ease-out both;
+}
+
+.provider-card,
+.knowledge-item,
+.storage-group-card,
+.conversation-history-item,
+.message {
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+}
+
+.provider-card:hover,
+.knowledge-item:hover,
+.storage-group-card:hover,
+.conversation-history-item:hover {
+  transform: translateY(-1px);
+}
+
+.storage-detail,
+.knowledge-editor,
+.provider-card,
+.about-card {
+  animation: panel-soft-in 130ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-main > *,
+  .dashboard-page,
+  .session-layout,
+  .settings-shell,
+  .storage-detail,
+  .knowledge-editor,
+  .provider-card,
+  .about-card {
+    animation: none;
+  }
+
+  .primary-nav-item,
+  .recent-item,
+  .settings-nav-item,
+  .provider-card,
+  .knowledge-item,
+  .storage-group-card,
+  .conversation-history-item,
+  .message {
+    transition: none;
+  }
 }
 
 .appearance-page {
