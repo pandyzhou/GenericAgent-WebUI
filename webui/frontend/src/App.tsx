@@ -1666,9 +1666,6 @@ export default function App() {
                         const next = e.key === "ArrowDown" ? prev + 1 : prev - 1
                         return (next + filteredSlashCommands.length) % filteredSlashCommands.length
                       })
-                      const menu = document.querySelector('.slash-menu')
-                      const active = document.querySelector('.slash-item.is-active') as HTMLElement | null
-                      if (menu && active) active.scrollIntoView({ block: 'nearest' })
                       return
                     }
                     if (slashOpen && e.key === "Tab") {
