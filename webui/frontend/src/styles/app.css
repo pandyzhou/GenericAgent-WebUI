@@ -1342,38 +1342,39 @@ button:disabled {
 }
 
 .slash-menu {
-  width: min(520px, 100%);
-  max-height: 240px;
-  margin-bottom: 10px;
-  padding: 4px;
+  width: min(760px, 100%);
+  max-height: 320px;
+  margin: 0 auto 10px;
+  padding: 8px;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--paper);
-  box-shadow: var(--shadow);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(10px);
   overflow-y: auto;
 }
 
 .slash-group + .slash-group {
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .slash-group-title {
-  padding: 3px 8px 4px;
+  padding: 4px 10px 6px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
 }
 
 .slash-item {
   width: 100%;
-  min-height: 32px;
+  min-height: 38px;
   display: grid;
-  grid-template-columns: 132px minmax(0, 1fr) auto;
+  grid-template-columns: 165px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
-  padding: 5px 8px;
+  gap: 10px;
+  padding: 8px 10px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 10px;
   background: transparent;
   color: var(--text);
   text-align: left;
@@ -1386,7 +1387,7 @@ button:disabled {
 
 .slash-command-name {
   font-family: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--mantine-primary);
 }
@@ -1397,15 +1398,15 @@ button:disabled {
   white-space: nowrap;
   text-overflow: ellipsis;
   color: var(--text);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .slash-command-kind {
-  padding: 1px 6px;
+  padding: 2px 7px;
   border-radius: 999px;
   background: var(--subtle);
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
 }
 
