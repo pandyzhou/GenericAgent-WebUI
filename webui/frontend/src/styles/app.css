@@ -2085,6 +2085,58 @@ button:disabled {
   height: 100%;
 }
 
+/* ── Usage page ───────────────────────────────────────────────────────────── */
+
+.usage-page {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.usage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.usage-item {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--paper);
+}
+
+.usage-item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.usage-type {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--subtle);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.usage-detail {
+  color: var(--text);
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.usage-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 /* ── Runtime page ─────────────────────────────────────────────────────────── */
 
 .runtime-page {

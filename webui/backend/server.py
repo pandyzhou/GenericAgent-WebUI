@@ -22,6 +22,37 @@ threading.Thread(target=agent.run, daemon=True).start()
 
 RUNS = {}
 RUN_LOCK = threading.Lock()
+AUDIT_PATH = os.path.join(ROOT, 'temp', 'webui_audit.jsonl')
+
+
+def _append_audit(event_type, title, detail='', meta=None):
+    os.makedirs(os.path.dirname(AUDIT_PATH), exist_ok=True)
+    rec = {
+        'ts': int(time.time()),
+        'type': event_type,
+        'title': title,
+        'detail': detail,
+        'meta': meta or {},
+    }
+    with open(AUDIT_PATH, 'a', encoding='utf-8') as f:
+        f.write(json.dumps(rec, ensure_ascii=False) + '\n')
+
+
+def _read_audit(limit=100):
+    items = []
+    try:
+        with open(AUDIT_PATH, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    items.append(json.loads(line))
+                except Exception:
+                    continue
+    except FileNotFoundError:
+        return []
+    return list(reversed(items[-limit:]))
 
 
 def now_ts():
@@ -167,6 +198,7 @@ def api_reload():
 @app.post('/api/new')
 def api_new():
     message = reset_conversation(agent)
+    _append_audit('new_chat', '新建对话', message)
     return {'ok': True, 'message': message}
 
 
@@ -178,6 +210,7 @@ def api_switch_llm():
         response.status = 400
         return {'ok': False, 'error': 'index 不能为空'}
     agent.next_llm(int(idx))
+    _append_audit('switch_llm', '切换模型', f'切换到 {agent.get_llm_name()}', {'index': int(idx)})
     return {
         'ok': True,
         'llm_no': agent.llm_no,
@@ -262,10 +295,12 @@ def api_delete_session(idx):
     path = sessions[idx - 1][0]
     try:
         os.remove(path)
+        _append_audit('delete_session', '删除历史会话', os.path.relpath(path, ROOT).replace('\\', '/'), {'index': idx})
         return {'ok': True}
     except Exception as e:
-        response.status = 500
+        response.status = 400
         return {'ok': False, 'error': str(e)}
+
 
 
 def _truncate_backend_history(keep_messages):
@@ -319,17 +354,25 @@ def api_continue():
 
     if os.path.abspath(target_path) == current_path:
         history = extract_ui_messages(target_path)
+        _append_audit('open_session', '打开历史会话', os.path.relpath(target_path, ROOT).replace('\\', '/'), {'index': idx, 'current': True})
         return {'ok': True, 'message': '✅ 已打开当前会话', 'history': history}
 
-    reset_conversation(agent, message=None)
     message, _ = restore(agent, target_path)
     history = extract_ui_messages(target_path) if message.startswith(('✅', '⚠️')) else []
+    _append_audit('open_session', '打开历史会话', os.path.relpath(target_path, ROOT).replace('\\', '/'), {'index': idx, 'current': False})
     return {'ok': True, 'message': message, 'history': history}
+
 
 
 @app.get('/api/history')
 def api_history():
     return {'ok': True, 'history': getattr(agent, 'history', []) or []}
+
+
+@app.get('/api/audit')
+def api_audit():
+    limit = int(request.query.get('limit', '100'))
+    return {'ok': True, 'items': _read_audit(limit)}
 
 
 # ── Storage management ───────────────────────────────────────────────────────
@@ -567,6 +610,7 @@ def api_storage_cleanup(key):
                     deleted.append(os.path.relpath(p, ROOT).replace('\\', '/'))
                 except Exception as e:
                     errors.append({'path': os.path.relpath(p, ROOT).replace('\\', '/'), 'error': str(e)})
+            _append_audit('storage_cleanup', '清理储存空间', f'{key}: {len(candidates)} files, {total_size} bytes', {'key': key, 'count': len(candidates), 'size': total_size})
         return {
             'ok': True,
             'dry_run': dry_run,
@@ -948,20 +992,16 @@ def api_save_knowledge_file():
     content = payload.get('content', '')
     try:
         rel, abs_path = _safe_knowledge_path(path)
-        if rel == 'memory/file_access_stats.json':
-            response.status = 403
-            return {'ok': False, 'error': '该文件只读'}
-        if not os.path.isfile(abs_path):
-            response.status = 404
-            return {'ok': False, 'error': '文件不存在'}
         backup = _backup_file(rel, abs_path)
-        with open(abs_path, 'w', encoding='utf-8', errors='replace') as f:
+        with open(abs_path, 'w', encoding='utf-8') as f:
             f.write(content)
         st = os.stat(abs_path)
-        return {'ok': True, 'backup': backup, 'size': st.st_size, 'mtime': st.st_mtime}
+        _append_audit('save_knowledge', '保存知识文件', rel, {'size': st.st_size})
+        return {'ok': True, 'path': rel, 'backup': backup, 'size': st.st_size, 'mtime': st.st_mtime}
     except Exception as e:
         response.status = 400
         return {'ok': False, 'error': str(e)}
+
 
 
 @app.post('/api/knowledge/backup')
@@ -1045,10 +1085,13 @@ def api_provider_test(key):
         resp = http_requests.post(url, headers=headers, json=body, timeout=30, verify=False)
         elapsed_ms = int((time.time() - started) * 1000)
         if resp.status_code == 200:
+            _append_audit('test_provider', '测试提供商连接', key, {'ok': True, 'elapsed_ms': elapsed_ms})
             return {'ok': True, 'message': '连接成功', 'elapsed_ms': elapsed_ms}
         # Some APIs return 201 or other 2xx
         if 200 <= resp.status_code < 300:
+            _append_audit('test_provider', '测试提供商连接', key, {'ok': True, 'elapsed_ms': elapsed_ms, 'status_code': resp.status_code})
             return {'ok': True, 'message': f'连接成功 (HTTP {resp.status_code})', 'elapsed_ms': elapsed_ms}
+        _append_audit('test_provider', '测试提供商连接', key, {'ok': False, 'elapsed_ms': elapsed_ms, 'status_code': resp.status_code})
         return {'ok': False, 'error': f'HTTP {resp.status_code}: {resp.text[:300]}', 'elapsed_ms': elapsed_ms}
     except http_requests.exceptions.Timeout:
         return {'ok': False, 'error': '连接超时（30秒）'}

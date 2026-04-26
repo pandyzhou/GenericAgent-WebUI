@@ -675,6 +675,58 @@ function RuntimePage({ currentLlm, stopRun, running, historyCount }: { currentLl
   )
 }
 
+function UsagePage() {
+  const [items, setItems] = useState<AuditItem[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await api.audit()
+      setItems(res.items || [])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load().catch(() => undefined) }, [load])
+
+  const typeCount = new Set(items.map((x) => x.type)).size
+
+  return (
+    <div className="usage-page">
+      <div className="settings-breadcrumb">实例管理</div>
+      <div className="runtime-head">
+        <h2 className="settings-title" style={{ margin: 0 }}>使用历史</h2>
+        <div className="runtime-actions">
+          <button onClick={load}>{loading ? '刷新中...' : '刷新'}</button>
+        </div>
+      </div>
+
+      <div className="runtime-grid">
+        <div className="runtime-card"><span>最近记录数</span><strong>{items.length}</strong></div>
+        <div className="runtime-card"><span>最近一次操作</span><strong>{items[0] ? formatRelativeTime(items[0].ts) : '—'}</strong></div>
+        <div className="runtime-card"><span>操作类型数</span><strong>{typeCount}</strong></div>
+        <div className="runtime-card"><span>来源</span><strong>WebUI</strong></div>
+      </div>
+
+      <div className="usage-list">
+        {items.map((item, idx) => (
+          <div className="usage-item" key={`${item.ts}-${idx}`}>
+            <div className="usage-item-head">
+              <strong>{item.title}</strong>
+              <span className="usage-type">{item.type}</span>
+            </div>
+            <div className="usage-detail">{item.detail || '—'}</div>
+            <div className="usage-meta">{formatRelativeTime(item.ts)}</div>
+          </div>
+        ))}
+        {!items.length && <div className="storage-empty">暂无使用记录</div>}
+      </div>
+    </div>
+  )
+}
+
 function StoragePage() {
   const [groups, setGroups] = useState<StorageGroup[]>([])
   const [totalSize, setTotalSize] = useState(0)
@@ -1378,6 +1430,7 @@ export default function App() {
               <SettingsPanel active={settingsSection === "providers"}><ProvidersPage currentLlm={currentLlm} /></SettingsPanel>
               <SettingsPanel active={settingsSection === "storage"}><StoragePage /></SettingsPanel>
               <SettingsPanel active={settingsSection === "runtime"}><RuntimePage currentLlm={currentLlm} stopRun={stopRun} running={busy || Boolean(status?.running)} historyCount={status?.history_count ?? 0} /></SettingsPanel>
+              <SettingsPanel active={settingsSection === "usage"}><UsagePage /></SettingsPanel>
               <SettingsPanel active={settingsSection === "prompts"}><KnowledgePage section="prompts" /></SettingsPanel>
               <SettingsPanel active={settingsSection === "memory"}><KnowledgePage section="memory" /></SettingsPanel>
               <SettingsPanel active={settingsSection === "sop"}><KnowledgePage section="sop" /></SettingsPanel>
@@ -1434,7 +1487,7 @@ export default function App() {
                 </div>
               </SettingsPanel>
               {[...personalSettings, ...instanceSettings]
-                .filter((item) => !["providers", "storage", "runtime", "prompts", "memory", "sop", "skills-settings", "about", "appearance"].includes(item.key))
+                .filter((item) => !["providers", "storage", "runtime", "usage", "prompts", "memory", "sop", "skills-settings", "about", "appearance"].includes(item.key))
                 .map((item) => (
                   <SettingsPanel key={item.key} active={settingsSection === item.key}>
                     <div className="settings-placeholder">
