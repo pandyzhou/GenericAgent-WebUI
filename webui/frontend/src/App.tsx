@@ -45,7 +45,6 @@ function SettingsPanel({ active, children }: { active: boolean; children: React.
 
 const personalSettings: SettingsItem[] = [
   { label: "个人资料", key: "profile", icon: "profile", group: "个人设置" },
-  { label: "通知", key: "notifications", icon: "notifications" },
   { label: "外观与界面", key: "appearance", icon: "appearance" },
   { label: "IM 网关", key: "gateway", icon: "gateway" },
 ]
@@ -65,7 +64,6 @@ const instanceSettings: SettingsItem[] = [
 const mainNavItems: { label: string; page?: Page; icon: IconName }[] = [
   { label: "仪表盘", page: "dashboard", icon: "dashboard" },
   { label: "会话", page: "session", icon: "session" },
-  { label: "工作区", icon: "workspace" },
 ]
 
 const WEBUI_REPO_URL = "https://github.com/pandyzhou/GenericAgent-WebUI"
