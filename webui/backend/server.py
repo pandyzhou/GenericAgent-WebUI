@@ -1,5 +1,5 @@
 from bottle import Bottle, request, response, static_file
-import glob, json, os, queue, re, shutil, threading, time, uuid, sys, requests as http_requests
+import glob, json, os, queue, re, shutil, threading, time, uuid, sys, subprocess, requests as http_requests
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FRONTENDS_DIR = os.path.join(ROOT, 'frontends')
@@ -1180,23 +1180,184 @@ for ch in IM_CHANNEL_SCHEMA.values():
     for f in ch.get('fields', []):
         IM_CONFIG_KEYS.add(f['key'])
 
+IM_PROCESS_REGISTRY = {}
+IM_RUNTIME_DIR = os.path.join(ROOT, 'webui', 'temp', 'im_runtime')
+GENERIC_AGENT_ROOT = os.path.abspath(os.path.join(ROOT, '..', 'GenericAgent'))
+GENERIC_AGENT_FRONTENDS = os.path.join(GENERIC_AGENT_ROOT, 'frontends')
 
-def _read_im_config():
-    """Read IM-related config from mykey.py."""
-    result = {}
-    if not os.path.exists(MYKEY_PATH):
-        return result
-    with open(MYKEY_PATH, 'r', encoding='utf-8') as f:
-        content = f.read()
-    for key in IM_CONFIG_KEYS:
-        pattern = rf"^{re.escape(key)}\s*=\s*(.+)$"
-        m = re.search(pattern, content, re.MULTILINE)
-        if m:
-            result[key] = m.group(1).strip()
-    return result
+IM_CHANNEL_RUNTIME = {
+    'feishu': {
+        'script': os.path.join(GENERIC_AGENT_FRONTENDS, 'fsapp.py'),
+        'required': ['fs_app_id', 'fs_app_secret'],
+        'managed': True,
+    },
+    'telegram': {
+        'script': os.path.join(GENERIC_AGENT_FRONTENDS, 'tgapp.py'),
+        'required': ['tg_bot_token'],
+        'managed': True,
+    },
+    'qq': {
+        'script': os.path.join(GENERIC_AGENT_FRONTENDS, 'qqapp.py'),
+        'required': ['qq_app_id', 'qq_app_secret'],
+        'managed': True,
+    },
+    'wecom': {
+        'script': os.path.join(GENERIC_AGENT_FRONTENDS, 'wecomapp.py'),
+        'required': ['wecom_bot_id', 'wecom_secret'],
+        'managed': True,
+    },
+    'dingtalk': {
+        'script': os.path.join(GENERIC_AGENT_FRONTENDS, 'dingtalkapp.py'),
+        'required': ['dingtalk_client_id', 'dingtalk_client_secret'],
+        'managed': True,
+    },
+    'wechat': {
+        'script': os.path.join(GENERIC_AGENT_FRONTENDS, 'wechatapp.py'),
+        'required': [],
+        'managed': True,
+    },
+    'streamlit': {
+        'script': os.path.join(GENERIC_AGENT_FRONTENDS, 'stapp.py'),
+        'required': [],
+        'managed': True,
+    },
+}
 
 
-def _mask_value(value, visible=4):
+def _validate_im_required(channel, raw):
+    runtime = IM_CHANNEL_RUNTIME.get(channel, {})
+    required = runtime.get('required', [])
+    missing = []
+    for key in required:
+        val = str(raw.get(key, '') or '').strip("'\"")
+        if not val:
+            missing.append(key)
+    return missing
+
+
+def _ensure_im_runtime_dir():
+    os.makedirs(IM_RUNTIME_DIR, exist_ok=True)
+
+
+def _im_log_path(channel):
+    _ensure_im_runtime_dir()
+    return os.path.join(IM_RUNTIME_DIR, f'{channel}.log')
+
+
+def _read_log_tail(path, max_lines=8, max_chars=4000):
+    if not path or not os.path.exists(path):
+        return []
+    try:
+        with open(path, 'r', encoding='utf-8', errors='replace') as f:
+            lines = f.readlines()
+        tail = [line.rstrip('\r\n') for line in lines[-max_lines:]]
+        text = '\n'.join(tail)
+        if len(text) > max_chars:
+            text = text[-max_chars:]
+            tail = text.splitlines()
+        return tail
+    except Exception as e:
+        return [f'读取日志失败: {e}']
+
+
+def _normalize_im_registry(channel):
+    runtime = IM_CHANNEL_RUNTIME.get(channel, {})
+    script = runtime.get('script', '')
+    entry = IM_PROCESS_REGISTRY.setdefault(channel, {
+        'process': None,
+        'pid': None,
+        'started_at': None,
+        'last_exit_code': None,
+        'log_path': _im_log_path(channel),
+        'message': '',
+    })
+    proc = entry.get('process')
+    if proc is not None:
+        code = proc.poll()
+        if code is not None:
+            entry['last_exit_code'] = code
+            entry['process'] = None
+            entry['pid'] = None
+            if not entry.get('message'):
+                entry['message'] = f'进程已退出，退出码 {code}'
+    return {
+        'key': channel,
+        'managed': bool(runtime.get('managed')),
+        'script_exists': bool(script and os.path.exists(script)),
+        'running': entry.get('process') is not None,
+        'pid': entry.get('pid'),
+        'started_at': entry.get('started_at'),
+        'last_exit_code': entry.get('last_exit_code'),
+        'log_path': entry.get('log_path'),
+        'log_tail': _read_log_tail(entry.get('log_path')),
+        'message': entry.get('message', ''),
+    }
+
+
+def _start_im_process(channel):
+    runtime = IM_CHANNEL_RUNTIME.get(channel)
+    if not runtime:
+        raise ValueError('未知渠道')
+    if not runtime.get('managed'):
+        raise ValueError('该渠道暂不支持由 WebUI 启动')
+    script = runtime.get('script', '')
+    if not script or not os.path.exists(script):
+        raise FileNotFoundError(f'启动脚本不存在: {script}')
+
+    raw = _read_im_config()
+    missing = _validate_im_required(channel, raw)
+    if missing:
+        raise ValueError(f'缺少配置项: {", ".join(missing)}')
+
+    current = _normalize_im_registry(channel)
+    if current['running']:
+        return current
+
+    log_path = _im_log_path(channel)
+    py_path = os.pathsep.join([ROOT, GENERIC_AGENT_ROOT])
+    env = os.environ.copy()
+    env['PYTHONPATH'] = py_path + (os.pathsep + env['PYTHONPATH'] if env.get('PYTHONPATH') else '')
+
+    logf = open(log_path, 'a', encoding='utf-8', buffering=1)
+    proc = subprocess.Popen(
+        [sys.executable, script],
+        cwd=GENERIC_AGENT_ROOT,
+        stdout=logf,
+        stderr=subprocess.STDOUT,
+        env=env,
+    )
+    IM_PROCESS_REGISTRY[channel] = {
+        'process': proc,
+        'pid': proc.pid,
+        'started_at': int(time.time()),
+        'last_exit_code': None,
+        'log_path': log_path,
+        'message': '已启动',
+    }
+    time.sleep(0.4)
+    return _normalize_im_registry(channel)
+
+
+def _stop_im_process(channel):
+    entry = IM_PROCESS_REGISTRY.get(channel)
+    if not entry or entry.get('process') is None:
+        return _normalize_im_registry(channel)
+    proc = entry.get('process')
+    if proc.poll() is None:
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except Exception:
+            proc.kill()
+            proc.wait(timeout=5)
+    entry['last_exit_code'] = proc.returncode
+    entry['process'] = None
+    entry['pid'] = None
+    entry['message'] = f'已停止（退出码 {proc.returncode}）'
+    return _normalize_im_registry(channel)
+
+
+
     """Mask sensitive value, keep last N chars visible."""
     if not value or len(value) <= visible + 2:
         return value
@@ -1287,6 +1448,54 @@ def api_im_save_config():
         return {'ok': False, 'error': str(e)}
 
 
+@app.get('/api/im/status')
+def api_im_status():
+    statuses = {}
+    for key in IM_CHANNEL_SCHEMA.keys():
+        statuses[key] = _normalize_im_registry(key)
+    return {'ok': True, 'statuses': statuses}
+
+
+@app.post('/api/im/start/<channel>')
+def api_im_start(channel):
+    if channel not in IM_CHANNEL_SCHEMA:
+        response.status = 400
+        return {'ok': False, 'error': '未知渠道'}
+    try:
+        status = _start_im_process(channel)
+        return {'ok': True, 'status': status}
+    except Exception as e:
+        response.status = 400
+        return {'ok': False, 'error': str(e)}
+
+
+@app.post('/api/im/stop/<channel>')
+def api_im_stop(channel):
+    if channel not in IM_CHANNEL_SCHEMA:
+        response.status = 400
+        return {'ok': False, 'error': '未知渠道'}
+    try:
+        status = _stop_im_process(channel)
+        return {'ok': True, 'status': status}
+    except Exception as e:
+        response.status = 400
+        return {'ok': False, 'error': str(e)}
+
+
+@app.post('/api/im/restart/<channel>')
+def api_im_restart(channel):
+    if channel not in IM_CHANNEL_SCHEMA:
+        response.status = 400
+        return {'ok': False, 'error': '未知渠道'}
+    try:
+        _stop_im_process(channel)
+        status = _start_im_process(channel)
+        return {'ok': True, 'status': status}
+    except Exception as e:
+        response.status = 400
+        return {'ok': False, 'error': str(e)}
+
+
 @app.post('/api/im/test/<channel>')
 def api_im_test(channel):
     """Test IM channel configuration."""
@@ -1297,13 +1506,7 @@ def api_im_test(channel):
     raw = _read_im_config()
     schema = IM_CHANNEL_SCHEMA[channel]
 
-    # Check required fields
-    required = [f['key'] for f in schema.get('fields', []) if f.get('type') == 'password' or f['key'].endswith('_id') or f['key'].endswith('_token')]
-    missing = []
-    for key in required:
-        val = raw.get(key, '').strip("'\"")
-        if not val:
-            missing.append(key)
+    missing = _validate_im_required(channel, raw)
     if missing:
         return {'ok': False, 'error': f'缺少配置项: {", ".join(missing)}'}
 

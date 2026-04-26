@@ -140,6 +140,24 @@ export type ImConfigResponse = {
   channels: ImChannel[]
 }
 
+export type ImChannelStatus = {
+  key: string
+  managed: boolean
+  script_exists: boolean
+  running: boolean
+  pid: number | null
+  started_at: number | null
+  last_exit_code: number | null
+  log_path: string
+  log_tail: string[]
+  message: string
+}
+
+export type ImStatusResponse = {
+  ok: boolean
+  statuses: Record<string, ImChannelStatus>
+}
+
 const API_BASE = 'http://127.0.0.1:18765'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -210,10 +228,26 @@ export const api = {
     method: 'DELETE',
   }),
   imConfig: () => request<ImConfigResponse>('/api/im/config'),
+  imStatus: () => request<ImStatusResponse>('/api/im/status'),
   imSaveConfig: (channel: string, fields: Record<string, string>) =>
     request<{ ok: boolean }>('/api/im/config', {
       method: 'POST',
       body: JSON.stringify({ channel, fields }),
+    }),
+  imStart: (channel: string) =>
+    request<{ ok: boolean; status: ImChannelStatus }>(`/api/im/start/${encodeURIComponent(channel)}`, {
+      method: 'POST',
+      body: '{}',
+    }),
+  imStop: (channel: string) =>
+    request<{ ok: boolean; status: ImChannelStatus }>(`/api/im/stop/${encodeURIComponent(channel)}`, {
+      method: 'POST',
+      body: '{}',
+    }),
+  imRestart: (channel: string) =>
+    request<{ ok: boolean; status: ImChannelStatus }>(`/api/im/restart/${encodeURIComponent(channel)}`, {
+      method: 'POST',
+      body: '{}',
     }),
   imTest: (channel: string) =>
     request<{ ok: boolean; message?: string; error?: string }>(`/api/im/test/${encodeURIComponent(channel)}`, {

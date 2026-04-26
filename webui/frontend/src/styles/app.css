@@ -2808,9 +2808,55 @@ button:disabled {
   color: #2f9e44;
 }
 
-.im-channel-note {
-  color: var(--muted);
+.im-runtime-status {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(250, 176, 5, 0.12);
+  color: #e67700;
+}
+
+.im-runtime-status.is-running {
+  background: rgba(64, 192, 87, 0.14);
+  color: #2f9e44;
+}
+
+.im-runtime-status.is-stopped {
+  background: rgba(250, 82, 82, 0.1);
+  color: #e03131;
+}
+
+.im-runtime-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin: 8px 0;
   font-size: 12px;
+  color: var(--muted);
+}
+
+.im-runtime-message {
+  margin: 8px 0;
+  font-size: 12px;
+  color: var(--dimmed);
+}
+
+.im-log-tail {
+  margin: 8px 0 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border-soft);
+  color: var(--dimmed);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: "Cascadia Code", Consolas, monospace;
+  max-height: 180px;
+  overflow: auto;
 }
 
 .im-channel-fields {

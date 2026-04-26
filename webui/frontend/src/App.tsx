@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react"
-import { api, SessionItem, StatusResponse, Provider, ChatMessage, KnowledgeGroup, KnowledgeItem, StorageGroup, StorageDetail, StorageCleanupResult, ImChannel } from "./api"
+import { api, SessionItem, StatusResponse, Provider, ChatMessage, KnowledgeGroup, KnowledgeItem, StorageGroup, StorageDetail, StorageCleanupResult, ImChannel, ImChannelStatus } from "./api"
 import MessageRenderer from "./components/MessageRenderer"
 import "./styles/app.css"
 
@@ -1061,15 +1061,27 @@ function GatewayPage() {
   const [draft, setDraft] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState<string | null>(null)
+  const [operating, setOperating] = useState<string | null>(null)
+  const [statuses, setStatuses] = useState<Record<string, ImChannelStatus>>({})
   const [testResult, setTestResult] = useState<{ key: string; ok: boolean; message: string } | null>(null)
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({})
+
+  const loadStatus = useCallback(async () => {
+    try {
+      const res = await api.imStatus()
+      setStatuses(res.statuses)
+    } catch {
+      // ignore polling errors
+    }
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const res = await api.imConfig()
-      setChannels(res.channels)
+      const [configRes, statusRes] = await Promise.all([api.imConfig(), api.imStatus()])
+      setChannels(configRes.channels)
+      setStatuses(statusRes.statuses)
     } catch (e: any) {
       console.error('加载 IM 配置失败', e)
       setError(e.message || '加载失败')
@@ -1078,6 +1090,13 @@ function GatewayPage() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      loadStatus()
+    }, 5000)
+    return () => window.clearInterval(timer)
+  }, [loadStatus])
 
   const startEdit = (ch: ImChannel) => {
     setEditing(ch.key)
@@ -1123,6 +1142,20 @@ function GatewayPage() {
     setTesting(null)
   }
 
+  const runAction = async (key: string, action: 'start' | 'stop' | 'restart') => {
+    setOperating(`${action}:${key}`)
+    setTestResult(null)
+    try {
+      if (action === 'start') await api.imStart(key)
+      else if (action === 'stop') await api.imStop(key)
+      else await api.imRestart(key)
+      await loadStatus()
+    } catch (e: any) {
+      setTestResult({ key, ok: false, message: e.message || '操作失败' })
+    }
+    setOperating(null)
+  }
+
   return (
     <div className="appearance-page">
       <div className="settings-breadcrumb">个人设置</div>
@@ -1134,19 +1167,39 @@ function GatewayPage() {
       {!loading && !error && channels.length === 0 && <p style={{ color: 'var(--muted)' }}>暂无渠道数据</p>}
 
       <div className="im-channel-grid">
-        {channels.map((ch) => (
+        {channels.map((ch) => {
+          const status = statuses[ch.key]
+          const canManage = status?.managed && status?.script_exists
+          const busyAction = operating?.endsWith(`:${ch.key}`) ? operating.split(':')[0] : null
+          return (
           <div key={ch.key} className={`im-channel-card ${ch.configured ? 'is-configured' : ''} ${editing === ch.key ? 'is-editing' : ''}`}>
             <div className="im-channel-head">
               <div>
                 <strong>{ch.name}</strong>
                 <span className={`im-channel-status ${ch.configured ? 'is-on' : ''}`}>{ch.configured ? '已配置' : '未配置'}</span>
+                <span className={`im-runtime-status ${status?.running ? 'is-running' : 'is-stopped'}`}>{status?.running ? '运行中' : '未运行'}</span>
               </div>
               {ch.note ? (
                 <span className="im-channel-note">{ch.note}</span>
               ) : (
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  {canManage && !status?.running && (
+                    <button className="prov-btn-sm prov-btn-primary" onClick={() => runAction(ch.key, 'start')} disabled={busyAction !== null || !ch.configured}>
+                      {busyAction === 'start' ? '启动中...' : '启动'}
+                    </button>
+                  )}
+                  {canManage && status?.running && (
+                    <>
+                      <button className="prov-btn-sm prov-btn-outline" onClick={() => runAction(ch.key, 'restart')} disabled={busyAction !== null}>
+                        {busyAction === 'restart' ? '重启中...' : '重启'}
+                      </button>
+                      <button className="prov-btn-sm prov-btn-danger" onClick={() => runAction(ch.key, 'stop')} disabled={busyAction !== null}>
+                        {busyAction === 'stop' ? '停止中...' : '停止'}
+                      </button>
+                    </>
+                  )}
                   {ch.configured && (
-                    <button className="prov-btn-sm" onClick={() => test(ch.key)} disabled={testing === ch.key}>
+                    <button className="prov-btn-sm" onClick={() => test(ch.key)} disabled={testing === ch.key || busyAction !== null}>
                       {testing === ch.key ? '测试中...' : '测试连接'}
                     </button>
                   )}
@@ -1162,6 +1215,23 @@ function GatewayPage() {
                 {testResult.message}
               </div>
             )}
+
+            {status && (
+              <div className="im-runtime-meta">
+                {status.pid ? <span>PID: {status.pid}</span> : <span>PID: -</span>}
+                {status.started_at ? <span>启动时间: {new Date(status.started_at * 1000).toLocaleString()}</span> : null}
+                {status.last_exit_code !== null ? <span>退出码: {status.last_exit_code}</span> : null}
+                {!status.script_exists ? <span>脚本缺失</span> : null}
+              </div>
+            )}
+
+            {status?.message && (
+              <div className="im-runtime-message">{status.message}</div>
+            )}
+
+            {status?.log_tail?.length ? (
+              <pre className="im-log-tail">{status.log_tail.join('\n')}</pre>
+            ) : null}
 
             {editing === ch.key && IM_CHANNEL_FIELDS[ch.key] && (
               <div className="im-channel-form">
@@ -1208,7 +1278,8 @@ function GatewayPage() {
               </div>
             )}
           </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
@@ -1931,25 +2002,24 @@ export default function App() {
                     {Array.from(new Map(filteredSlashCommands.map((cmd) => [cmd.group, cmd.group])).values()).map((group) => (
                       <div key={group} className="slash-group">
                         <div className="slash-group-title">{group}</div>
-                        {filteredSlashCommands.filter((cmd) => cmd.group === group).map((cmd, idx) => {
+                        {filteredSlashCommands.filter((cmd) => cmd.group === group).map((cmd) => {
                           const globalIndex = filteredSlashCommands.findIndex((x) => x === cmd)
                           return (
-                          <button
-                            key={cmd.name + cmd.insert}
-                            type="button"
-                            className={`slash-item ${globalIndex === slashIndex ? "is-active" : ""}`}
-                            onMouseDown={(e) => {
-                              e.preventDefault()
-                              completeSlashCommand(cmd)
-                            }}
-                          >
-                      <span className="slash-command-name">{cmd.name}</span>
-                      <span className="slash-command-desc">{cmd.desc}</span>
-                      <span className={`slash-command-kind is-${cmd.kind}`}>{cmd.kind === "local" ? "WebUI" : cmd.kind === "agent" ? "Agent" : "提示"}</span>
-                    </button>
+                            <button
+                              key={cmd.name + cmd.insert}
+                              type="button"
+                              className={`slash-item ${globalIndex === slashIndex ? "is-active" : ""}`}
+                              onMouseDown={(e) => {
+                                e.preventDefault()
+                                completeSlashCommand(cmd)
+                              }}
+                            >
+                              <span className="slash-command-name">{cmd.name}</span>
+                              <span className="slash-command-desc">{cmd.desc}</span>
+                              <span className={`slash-command-kind is-${cmd.kind}`}>{cmd.kind === "local" ? "WebUI" : cmd.kind === "agent" ? "Agent" : "提示"}</span>
+                            </button>
                           )
                         })}
-
                       </div>
                     ))}
                     <div className="slash-footer">↑↓ 选择 · Tab 补全 · Enter 执行</div>
