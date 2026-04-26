@@ -426,6 +426,14 @@ const formatFileSize = (size: number) => {
   return `${(size / 1024 / 1024).toFixed(1)} MB`
 }
 
+const normalizeNewChatMessage = (msg?: string) => {
+  const text = String(msg || '').trim()
+  if (!text) return '已开启新对话，当前上下文已清空'
+  if (text.includes('���') || text.includes('�')) return '已开启新对话，当前上下文已清空'
+  const cleaned = text.replace(/^[^\p{L}\p{N}\u4e00-\u9fff]+/u, '').trim()
+  return cleaned || '已开启新对话，当前上下文已清空'
+}
+
 const knowledgeSectionMap: Record<string, { group: string; title: string; breadcrumb: string }> = {
   prompts: { group: "prompts", title: "系统提示词", breadcrumb: "实例管理" },
   memory: { group: "memory", title: "记忆", breadcrumb: "实例管理" },
@@ -1171,7 +1179,7 @@ export default function App() {
 
   const startNewChat = async () => {
     const res = await api.newChat()
-    setMessages([{ role: "assistant", content: res.message || "已开启新对话", createdAt: Date.now(), status: 'done' }])
+    setMessages([{ role: "assistant", content: normalizeNewChatMessage(res.message), createdAt: Date.now(), status: 'done' }])
     setPrompt("")
     setBusy(false)
     setActiveRunId(null)
