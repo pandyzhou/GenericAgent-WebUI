@@ -975,6 +975,7 @@ export default function App() {
   const [contextMenu, setContextMenu] = useState<null | { x: number; y: number; type: 'session' | 'message'; sessionIndex?: number; messageIndex?: number }>(null)
   const [sessionSearch, setSessionSearch] = useState("")
   const [slashIndex, setSlashIndex] = useState(0)
+  const slashMenuRef = useRef<HTMLDivElement | null>(null)
   const chatListRef = useRef<HTMLDivElement | null>(null)
 
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem("ga_theme") as Theme) || "light")
@@ -1362,6 +1363,21 @@ export default function App() {
     setSlashIndex(0)
   }, [prompt])
 
+  useEffect(() => {
+    if (!slashOpen) return
+    const container = slashMenuRef.current
+    if (!container) return
+    const active = container.querySelector('.slash-item.is-active') as HTMLElement | null
+    if (!active) return
+    const top = active.offsetTop
+    const bottom = top + active.offsetHeight
+    if (top < container.scrollTop) {
+      container.scrollTop = top - 4
+    } else if (bottom > container.scrollTop + container.clientHeight) {
+      container.scrollTop = bottom - container.clientHeight + 4
+    }
+  }, [slashIndex, slashOpen])
+
   const Toggle = ({ checked, onChange, title, desc }: { checked: boolean; onChange: () => void; title: string; desc?: string }) => (
     <label className="nf-switch-row">
       <span className={`nf-switch ${checked ? "is-on" : ""}`}>
@@ -1608,7 +1624,7 @@ export default function App() {
 
               <div className="composer composer-card">
                 {slashOpen && (
-                  <div className="slash-menu">
+                  <div className="slash-menu" ref={slashMenuRef}>
                     {Array.from(new Map(filteredSlashCommands.map((cmd) => [cmd.group, cmd.group])).values()).map((group) => (
                       <div key={group} className="slash-group">
                         <div className="slash-group-title">{group}</div>
