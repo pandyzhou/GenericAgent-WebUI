@@ -1014,6 +1014,142 @@ const AboutPage = () => (
   </div>
 )
 
+const IM_CHANNEL_FIELDS: Record<string, { key: string; label: string; type?: string; placeholder?: string }[]> = {
+  feishu: [
+    { key: 'fs_app_id', label: 'App ID' },
+    { key: 'fs_app_secret', label: 'App Secret', type: 'password' },
+    { key: 'fs_allowed_users', label: '允许用户', placeholder: "['*'] 表示允许所有用户" },
+  ],
+  telegram: [
+    { key: 'tg_bot_token', label: 'Bot Token', type: 'password' },
+    { key: 'tg_allowed_users', label: '允许用户 ID', placeholder: '[123456789]' },
+    { key: 'proxy', label: '代理', placeholder: 'http://127.0.0.1:2082' },
+  ],
+  qq: [
+    { key: 'qq_app_id', label: 'App ID' },
+    { key: 'qq_app_secret', label: 'App Secret', type: 'password' },
+    { key: 'qq_allowed_users', label: '允许用户', placeholder: "['*']" },
+  ],
+  wecom: [
+    { key: 'wecom_bot_id', label: 'Bot ID' },
+    { key: 'wecom_secret', label: 'Secret', type: 'password' },
+    { key: 'wecom_allowed_users', label: '允许用户', placeholder: "['*']" },
+    { key: 'wecom_welcome_message', label: '欢迎消息' },
+  ],
+  dingtalk: [
+    { key: 'dingtalk_client_id', label: 'Client ID' },
+    { key: 'dingtalk_client_secret', label: 'Client Secret', type: 'password' },
+    { key: 'dingtalk_allowed_users', label: '允许用户', placeholder: "['*']" },
+  ],
+}
+
+function GatewayPage() {
+  const [channels, setChannels] = useState<ImChannel[]>([])
+  const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState<string | null>(null)
+  const [draft, setDraft] = useState<Record<string, string>>({})
+  const [saving, setSaving] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await api.imConfig()
+      setChannels(res.channels)
+    } catch (e: any) {
+      console.error('加载 IM 配置失败', e)
+    }
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const startEdit = (ch: ImChannel) => {
+    setEditing(ch.key)
+    const init: Record<string, string> = {}
+    IM_CHANNEL_FIELDS[ch.key]?.forEach((f) => {
+      init[f.key] = ch.fields[f.key] || ''
+    })
+    setDraft(init)
+  }
+
+  const cancelEdit = () => {
+    setEditing(null)
+    setDraft({})
+  }
+
+  const save = async () => {
+    if (!editing) return
+    setSaving(true)
+    try {
+      await api.imSaveConfig(editing, draft)
+      await load()
+      setEditing(null)
+      setDraft({})
+    } catch (e: any) {
+      alert('保存失败: ' + (e.message || e))
+    }
+    setSaving(false)
+  }
+
+  return (
+    <div className="appearance-page">
+      <div className="settings-breadcrumb">个人设置</div>
+      <h2 className="settings-title">IM 网关</h2>
+      <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 16 }}>配置各 IM 渠道接入 GenericAgent。配置保存在 mykey.py 中。</p>
+
+      {loading && <p style={{ color: 'var(--muted)' }}>加载中...</p>}
+
+      <div className="im-channel-grid">
+        {channels.map((ch) => (
+          <div key={ch.key} className={`im-channel-card ${ch.configured ? 'is-configured' : ''} ${editing === ch.key ? 'is-editing' : ''}`}>
+            <div className="im-channel-head">
+              <div>
+                <strong>{ch.name}</strong>
+                <span className={`im-channel-status ${ch.configured ? 'is-on' : ''}`}>{ch.configured ? '已配置' : '未配置'}</span>
+              </div>
+              {ch.note ? (
+                <span className="im-channel-note">{ch.note}</span>
+              ) : (
+                <button className="prov-btn-sm" onClick={() => editing === ch.key ? cancelEdit() : startEdit(ch)}>
+                  {editing === ch.key ? '收起' : '编辑'}
+                </button>
+              )}
+            </div>
+
+            {editing === ch.key && IM_CHANNEL_FIELDS[ch.key] && (
+              <div className="im-channel-form">
+                {IM_CHANNEL_FIELDS[ch.key].map((f) => (
+                  <label key={f.key} className="im-field">
+                    <span>{f.label}</span>
+                    <input
+                      type={f.type || 'text'}
+                      value={draft[f.key] || ''}
+                      placeholder={f.placeholder || ''}
+                      onChange={(e) => setDraft((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                    />
+                  </label>
+                ))}
+                <div className="im-channel-actions">
+                  <button className="prov-btn-sm" onClick={cancelEdit} disabled={saving}>取消</button>
+                  <button className="prov-btn-sm prov-btn-primary" onClick={save} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
+                </div>
+              </div>
+            )}
+
+            {ch.configured && !editing && (
+              <div className="im-channel-fields">
+                {Object.entries(ch.fields).slice(0, 3).map(([k, v]) => (
+                  <span key={k} className="im-field-tag">{k}: {v}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [page, setPage] = useState<Page>("settings")
   const [settingsSection, setSettingsSection] = useState("appearance")
@@ -1630,8 +1766,10 @@ export default function App() {
                   </section>
                 </div>
               </SettingsPanel>
+              <SettingsPanel active={settingsSection === "gateway"}><GatewayPage /></SettingsPanel>
+
               {[...personalSettings, ...instanceSettings]
-                .filter((item) => !["providers", "storage", "runtime", "usage", "prompts", "memory", "sop", "skills-settings", "about", "appearance"].includes(item.key))
+                .filter((item) => !["providers", "storage", "runtime", "usage", "prompts", "memory", "sop", "skills-settings", "about", "appearance", "gateway"].includes(item.key))
                 .map((item) => (
                   <SettingsPanel key={item.key} active={settingsSection === item.key}>
                     <div className="settings-placeholder">

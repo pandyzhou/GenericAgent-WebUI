@@ -127,6 +127,19 @@ export type AuditItem = {
   meta: Record<string, any>
 }
 
+export type ImChannel = {
+  key: string
+  name: string
+  configured: boolean
+  fields: Record<string, string>
+  note?: string
+}
+
+export type ImConfigResponse = {
+  ok: boolean
+  channels: ImChannel[]
+}
+
 const API_BASE = 'http://127.0.0.1:18765'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -196,4 +209,10 @@ export const api = {
   deleteStorageFile: (path: string) => request<{ ok: boolean; path: string; size: number }>(`/api/storage/file?path=${encodeURIComponent(path)}`, {
     method: 'DELETE',
   }),
+  imConfig: () => request<ImConfigResponse>('/api/im/config'),
+  imSaveConfig: (channel: string, fields: Record<string, string>) =>
+    request<{ ok: boolean }>('/api/im/config', {
+      method: 'POST',
+      body: JSON.stringify({ channel, fields }),
+    }),
 }
