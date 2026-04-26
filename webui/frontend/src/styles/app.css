@@ -2247,6 +2247,38 @@ button:disabled {
   font-size: 13px;
 }
 
+.storage-cleanup-confirm {
+  padding: 12px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(250, 82, 82, 0.22);
+  border-radius: 10px;
+  background: rgba(250, 82, 82, 0.06);
+}
+
+.storage-cleanup-confirm strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.storage-cleanup-confirm p {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.storage-cleanup-actions,
+.storage-file-actions,
+.storage-cleanup-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.storage-cleanup-summary {
+  margin-bottom: 6px;
+}
+
 .storage-cleanup-result ul {
   margin: 8px 0 0;
   padding-left: 18px;
@@ -2260,15 +2292,20 @@ button:disabled {
 
 .storage-file-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 90px 90px;
+  grid-template-columns: minmax(0, 1fr) 90px 160px;
   gap: 10px;
   align-items: center;
-  padding: 8px 0;
+  padding: 10px 0;
   border-top: 1px solid var(--border-soft);
   font-size: 12px;
 }
 
-.storage-file-row span {
+.storage-file-main {
+  min-width: 0;
+}
+
+.storage-file-main span {
+  display: block;
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
@@ -2276,10 +2313,22 @@ button:disabled {
   font-family: "Cascadia Code", Consolas, monospace;
 }
 
-.storage-file-row strong,
-.storage-file-row small {
+.storage-file-main small {
+  color: var(--muted);
+}
+
+.storage-file-row strong {
   color: var(--muted);
   text-align: right;
+}
+
+.storage-file-actions {
+  justify-content: flex-end;
+}
+
+.storage-file-actions button {
+  height: 28px;
+  padding: 0 8px;
 }
 
 .storage-empty {

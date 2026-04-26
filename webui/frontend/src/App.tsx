@@ -594,6 +594,7 @@ function StoragePage() {
   const [days, setDays] = useState(7)
   const [loading, setLoading] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [pendingCleanup, setPendingCleanup] = useState<{ mode: string; days: number; preview: StorageCleanupResult } | null>(null)
 
   const selected = groups.find((g) => g.key === selectedKey)
   const cleanable = selected && selected.cleanup !== 'readonly'
@@ -637,7 +638,27 @@ function StoragePage() {
   const runCleanup = async (dryRun: boolean, mode = 'older_than_days') => {
     const res = await api.cleanupStorage(selectedKey, { mode, days, dry_run: dryRun })
     setCleanup(res)
-    if (!dryRun) await loadOverview()
+    if (dryRun) {
+      setPendingCleanup({ mode, days, preview: res })
+      return
+    }
+    setPendingCleanup(null)
+    await loadOverview()
+  }
+
+  const confirmCleanup = async () => {
+    if (!pendingCleanup) return
+    const res = await api.cleanupStorage(selectedKey, { mode: pendingCleanup.mode, days: pendingCleanup.days, dry_run: false })
+    setCleanup(res)
+    setPendingCleanup(null)
+    await loadOverview()
+  }
+
+  const deleteLargestFile = async (path: string) => {
+    await api.deleteStorageFile(path)
+    const det = await api.storageDetail(selectedKey)
+    setDetail(det)
+    await loadOverview()
   }
 
   const cleanupLabel = (value: StorageGroup['cleanup']) => ({ safe: '安全清理', cautious: '谨慎', manual: '手动', readonly: '只读' }[value])
@@ -691,16 +712,29 @@ function StoragePage() {
                     <input type="number" min={1} value={days} onChange={(e) => setDays(Number(e.target.value) || 1)} />
                     <span>天的文件</span>
                     <button onClick={() => runCleanup(true)}>预览清理</button>
-                    <button className="danger" disabled={!cleanup?.dry_run || cleanup.count === 0} onClick={() => runCleanup(false)}>确认清理</button>
                   </div>
                   {detail.group.key === 'sessions' && <button onClick={() => runCleanup(true, 'snapshots_only')}>预览会话快照清理</button>}
                   {detail.group.key === 'logs' && <button onClick={() => runCleanup(true, 'logs_truncate')}>预览清空日志</button>}
                 </div>
               )}
 
+              {pendingCleanup && (
+                <div className="storage-cleanup-confirm">
+                  <strong>确认清理</strong>
+                  <p>将删除 {pendingCleanup.preview.count} 个文件，释放 {formatFileSize(pendingCleanup.preview.size)}。此操作不可撤销。</p>
+                  <div className="storage-cleanup-actions">
+                    <button onClick={() => setPendingCleanup(null)}>取消</button>
+                    <button className="danger" disabled={pendingCleanup.preview.count === 0} onClick={confirmCleanup}>确认执行</button>
+                  </div>
+                </div>
+              )}
+
               {cleanup && (
                 <div className="storage-cleanup-result">
-                  {cleanup.dry_run ? '预览' : '已执行'}：{cleanup.count} 个文件，{formatFileSize(cleanup.size)}
+                  <div className="storage-cleanup-summary">
+                    <strong>{cleanup.dry_run ? '预览结果' : '清理结果'}</strong>
+                    <span>{cleanup.count} 个文件 · {formatFileSize(cleanup.size)} · 错误 {cleanup.errors.length}</span>
+                  </div>
                   {cleanup.files.length > 0 && <ul>{cleanup.files.slice(0, 8).map((f) => <li key={f.path}>{f.path} · {formatFileSize(f.size)}</li>)}</ul>}
                 </div>
               )}
@@ -710,9 +744,15 @@ function StoragePage() {
                 {detail.largest.length === 0 && <div className="storage-empty">暂无文件</div>}
                 {detail.largest.map((f) => (
                   <div key={f.path} className="storage-file-row">
-                    <span>{f.path}</span>
+                    <div className="storage-file-main">
+                      <span>{f.path}</span>
+                      <small>{formatRelativeTime(f.mtime)}</small>
+                    </div>
                     <strong>{formatFileSize(f.size)}</strong>
-                    <small>{formatRelativeTime(f.mtime)}</small>
+                    <div className="storage-file-actions">
+                      <button onClick={() => navigator.clipboard?.writeText(f.path)}>复制路径</button>
+                      {detail.group.cleanup !== 'readonly' && <button className="danger" onClick={() => deleteLargestFile(f.path)}>删除</button>}
+                    </div>
                   </div>
                 ))}
               </div>

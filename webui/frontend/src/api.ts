@@ -169,4 +169,7 @@ export const api = {
     method: 'POST',
     body: JSON.stringify(payload),
   }),
+  deleteStorageFile: (path: string) => request<{ ok: boolean; path: string; size: number }>(`/api/storage/file?path=${encodeURIComponent(path)}`, {
+    method: 'DELETE',
+  }),
 }

@@ -533,6 +533,40 @@ def api_storage_cleanup(key):
         return {'ok': False, 'error': str(e)}
 
 
+def _allow_single_file_delete(rel_path):
+    rel = _rel_path(rel_path)
+    abs_path = os.path.abspath(os.path.join(ROOT, rel))
+    if not abs_path.startswith(os.path.abspath(ROOT)):
+        raise ValueError('非法路径')
+    current_session = os.path.abspath(_current_session_path())
+    if abs_path == current_session:
+        raise ValueError('不能删除当前活跃会话文件')
+    allowed = []
+    for key, cfg in STORAGE_GROUPS.items():
+        if cfg['cleanup'] == 'readonly':
+            continue
+        _, base = _safe_storage_root(cfg['path'])
+        allowed.append(os.path.abspath(base))
+    if not any(abs_path.startswith(base) for base in allowed if os.path.exists(base)):
+        raise ValueError('该文件不在可删除分类中')
+    if not os.path.exists(abs_path) or not os.path.isfile(abs_path):
+        raise ValueError('文件不存在')
+    return rel, abs_path
+
+
+@app.delete('/api/storage/file')
+def api_storage_delete_file():
+    rel_path = request.query.get('path', '')
+    try:
+        rel, abs_path = _allow_single_file_delete(rel_path)
+        size = os.path.getsize(abs_path)
+        os.remove(abs_path)
+        return {'ok': True, 'path': rel, 'size': size}
+    except Exception as e:
+        response.status = 400
+        return {'ok': False, 'error': str(e)}
+
+
 # ── Provider management ──────────────────────────────────────────────────────
 
 MYKEY_PATH = os.path.join(ROOT, 'mykey.py')
