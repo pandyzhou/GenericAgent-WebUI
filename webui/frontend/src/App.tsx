@@ -551,21 +551,10 @@ function StoragePage() {
 
   const selected = groups.find((g) => g.key === selectedKey)
   const cleanable = selected && selected.cleanup !== 'readonly'
-  const selectedKeyRef = useRef(selectedKey)
   const detailRequestRef = useRef(0)
   const overviewRequestRef = useRef(0)
 
-  useEffect(() => {
-    selectedKeyRef.current = selectedKey
-  }, [selectedKey])
-
-  const loadDetail = useCallback(async (key: string) => {
-    const req = ++detailRequestRef.current
-    const det = await api.storageDetail(key)
-    if (req === detailRequestRef.current) setDetail(det)
-  }, [])
-
-  const load = useCallback(async () => {
+  const loadOverview = useCallback(async () => {
     const req = ++overviewRequestRef.current
     setLoading(true)
     const res = await api.storage()
@@ -573,27 +562,31 @@ function StoragePage() {
     setGroups(res.groups)
     setTotalSize(res.total_size)
     setTotalFiles(res.total_files)
-    const current = selectedKeyRef.current
-    const nextKey = res.groups.find((g) => g.key === current)?.key || res.groups[0]?.key || 'sessions'
-    selectedKeyRef.current = nextKey
-    setSelectedKey(nextKey)
-    await loadDetail(nextKey)
-    if (req === overviewRequestRef.current) setLoading(false)
-  }, [loadDetail])
+    setSelectedKey((current) => res.groups.some((g) => g.key === current) ? current : (res.groups[0]?.key || 'sessions'))
+    setLoading(false)
+  }, [])
 
-  useEffect(() => { load().catch(() => setLoading(false)) }, [load])
+  useEffect(() => { loadOverview().catch(() => setLoading(false)) }, [loadOverview])
+
+  useEffect(() => {
+    if (!selectedKey) return
+    const req = ++detailRequestRef.current
+    setDetail(null)
+    api.storageDetail(selectedKey)
+      .then((det) => { if (req === detailRequestRef.current && det.group.key === selectedKey) setDetail(det) })
+      .catch(() => undefined)
+  }, [selectedKey])
 
   const selectGroup = (key: string) => {
-    selectedKeyRef.current = key
+    if (key === selectedKey) return
     setSelectedKey(key)
     setCleanup(null)
-    loadDetail(key).catch(() => undefined)
   }
 
   const runCleanup = async (dryRun: boolean, mode = 'older_than_days') => {
     const res = await api.cleanupStorage(selectedKey, { mode, days, dry_run: dryRun })
     setCleanup(res)
-    if (!dryRun) await load()
+    if (!dryRun) await loadOverview()
   }
 
   const cleanupLabel = (value: StorageGroup['cleanup']) => ({ safe: '安全清理', cautious: '谨慎', manual: '手动', readonly: '只读' }[value])
@@ -630,7 +623,7 @@ function StoragePage() {
                   <h3>{detail.group.label}</h3>
                   <p>{detail.group.path}</p>
                 </div>
-                <button onClick={load}>刷新</button>
+                <button onClick={loadOverview}>刷新</button>
               </div>
               <div className="storage-detail-grid">
                 <div><span>大小</span><strong>{formatFileSize(detail.group.size)}</strong></div>
