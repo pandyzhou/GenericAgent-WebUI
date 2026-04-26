@@ -1673,6 +1673,11 @@ export default function App() {
                       completeSlashCommand(filteredSlashCommands[slashIndex] || filteredSlashCommands[0])
                       return
                     }
+                    if (slashOpen && e.key === "Enter") {
+                      e.preventDefault()
+                      completeSlashCommand(filteredSlashCommands[slashIndex] || filteredSlashCommands[0])
+                      return
+                    }
                     if (e.key === "Enter" && !e.shiftKey && sendMode === "enter") {
                       e.preventDefault()
                       if (prompt.trim().startsWith("/") && await executeSlashCommand(prompt)) return
