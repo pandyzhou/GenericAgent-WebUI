@@ -2833,6 +2833,28 @@ button:disabled {
   color: #1c7ed6;
 }
 
+.im-log-live-tag {
+  margin-left: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(64, 192, 87, 0.14);
+  color: #2f9e44;
+  vertical-align: middle;
+}
+
+.im-log-paused-tag {
+  margin-left: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(250, 82, 82, 0.1);
+  color: #e03131;
+  vertical-align: middle;
+}
+
 .im-runtime-meta {
   display: flex;
   flex-wrap: wrap;

@@ -1590,6 +1590,33 @@ def api_im_log(channel):
     }
 
 
+@app.post('/api/im/log/<channel>/clear')
+def api_im_clear_log(channel):
+    if channel not in IM_CHANNEL_SCHEMA:
+        response.status = 400
+        return {'ok': False, 'error': '未知渠道'}
+    log_path = _im_log_path(channel)
+    _ensure_im_runtime_dir()
+    with open(log_path, 'w', encoding='utf-8') as f:
+        pass
+    entry = IM_PROCESS_REGISTRY.get(channel)
+    if entry:
+        entry['log_path'] = log_path
+    return {'ok': True, 'log_path': log_path}
+
+
+@app.post('/api/im/auto-restart/<channel>')
+def api_im_auto_restart(channel):
+    if channel not in IM_CHANNEL_SCHEMA:
+        response.status = 400
+        return {'ok': False, 'error': '未知渠道'}
+    payload = request.json or {}
+    enabled = bool(payload.get('enabled'))
+    _update_im_state(channel, managed_by_webui=True, auto_restart=enabled)
+    status = _normalize_im_registry(channel)
+    return {'ok': True, 'status': status}
+
+
 @app.post('/api/im/start/<channel>')
 def api_im_start(channel):
     if channel not in IM_CHANNEL_SCHEMA:

@@ -1063,7 +1063,7 @@ function GatewayPage() {
   const [testing, setTesting] = useState<string | null>(null)
   const [operating, setOperating] = useState<string | null>(null)
   const [statuses, setStatuses] = useState<Record<string, ImChannelStatus>>({})
-  const [logViewer, setLogViewer] = useState<{ channel: string; title: string; path: string; content: string; truncated: boolean; loading: boolean } | null>(null)
+  const [logViewer, setLogViewer] = useState<{ channel: string; title: string; path: string; content: string; truncated: boolean; loading: boolean; live: boolean } | null>(null)
   const [testResult, setTestResult] = useState<{ key: string; ok: boolean; message: string } | null>(null)
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({})
 
@@ -1158,19 +1158,57 @@ function GatewayPage() {
   }
 
   const openLogViewer = async (key: string, title: string) => {
-    setLogViewer({ channel: key, title, path: '', content: '', truncated: false, loading: true })
+    setLogViewer({ channel: key, title, path: '', content: '', truncated: false, loading: true, live: true })
     try {
       const res = await api.imLog(key)
-      setLogViewer({ channel: key, title, path: res.log_path, content: res.content, truncated: res.truncated, loading: false })
+      setLogViewer((prev) => prev && prev.channel === key ? { channel: key, title, path: res.log_path, content: res.content, truncated: res.truncated, loading: false, live: true } : prev)
     } catch (e: any) {
-      setLogViewer({ channel: key, title, path: '', content: e.message || '日志加载失败', truncated: false, loading: false })
+      setLogViewer((prev) => prev && prev.channel === key ? { channel: key, title, path: '', content: e.message || '日志加载失败', truncated: false, loading: false, live: true } : prev)
     }
   }
 
   const refreshLogViewer = async () => {
     if (!logViewer) return
-    await openLogViewer(logViewer.channel, logViewer.title)
+    const key = logViewer.channel
+    const title = logViewer.title
+    try {
+      const res = await api.imLog(key)
+      setLogViewer((prev) => prev && prev.channel === key ? { ...prev, path: res.log_path, content: res.content, truncated: res.truncated, loading: false } : prev)
+    } catch {
+      // ignore
+    }
   }
+
+  const clearLog = async () => {
+    if (!logViewer) return
+    try {
+      await api.imClearLog(logViewer.channel)
+      setLogViewer((prev) => prev ? { ...prev, content: '', truncated: false } : null)
+    } catch {
+      // ignore
+    }
+  }
+
+  const toggleLive = () => {
+    setLogViewer((prev) => prev ? { ...prev, live: !prev.live } : null)
+  }
+
+  const toggleAutoRestart = async (key: string, current: boolean) => {
+    try {
+      await api.imSetAutoRestart(key, !current)
+      await loadStatus()
+    } catch {
+      // ignore
+    }
+  }
+
+  useEffect(() => {
+    if (!logViewer?.live) return
+    const timer = window.setInterval(() => {
+      refreshLogViewer()
+    }, 2000)
+    return () => window.clearInterval(timer)
+  }, [logViewer?.live, logViewer?.channel])
 
   return (
     <div className="appearance-page">
@@ -1222,6 +1260,9 @@ function GatewayPage() {
                   )}
                   <button className="prov-btn-sm" onClick={() => openLogViewer(ch.key, ch.name)}>
                     查看日志
+                  </button>
+                  <button className={`prov-btn-sm ${status?.auto_restart ? 'prov-btn-primary' : ''}`} onClick={() => toggleAutoRestart(ch.key, Boolean(status?.auto_restart))}>
+                    自动恢复: {status?.auto_restart ? '开' : '关'}
                   </button>
                   <button className="prov-btn-sm" onClick={() => editing === ch.key ? cancelEdit() : startEdit(ch)}>
                     {editing === ch.key ? '收起' : '编辑'}
@@ -1307,11 +1348,13 @@ function GatewayPage() {
           <div className="im-log-modal" onClick={(e) => e.stopPropagation()}>
             <div className="im-log-modal-head">
               <div>
-                <h3>{logViewer.title} 日志</h3>
+                <h3>{logViewer.title} 日志 {logViewer.live ? <span className="im-log-live-tag">实时刷新中</span> : <span className="im-log-paused-tag">已暂停</span>}</h3>
                 <div className="im-log-modal-path">{logViewer.path || '暂无日志路径'}</div>
               </div>
               <div className="im-log-modal-actions">
-                <button className="prov-btn-sm" onClick={refreshLogViewer} disabled={logViewer.loading}>刷新</button>
+                <button className="prov-btn-sm" onClick={toggleLive}>{logViewer.live ? '暂停' : '恢复'}</button>
+                <button className="prov-btn-sm" onClick={refreshLogViewer} disabled={logViewer.loading || logViewer.live}>刷新</button>
+                <button className="prov-btn-sm prov-btn-danger" onClick={clearLog}>清空日志</button>
                 <button className="prov-btn-sm" onClick={() => setLogViewer(null)}>关闭</button>
               </div>
             </div>

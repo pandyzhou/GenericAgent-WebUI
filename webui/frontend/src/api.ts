@@ -260,6 +260,16 @@ export const api = {
     }),
   imLog: (channel: string, lines = 200, chars = 20000) =>
     request<ImLogResponse>(`/api/im/log/${encodeURIComponent(channel)}?lines=${lines}&chars=${chars}`),
+  imClearLog: (channel: string) =>
+    request<{ ok: boolean; log_path: string }>(`/api/im/log/${encodeURIComponent(channel)}/clear`, {
+      method: 'POST',
+      body: '{}',
+    }),
+  imSetAutoRestart: (channel: string, enabled: boolean) =>
+    request<{ ok: boolean; status: ImChannelStatus }>(`/api/im/auto-restart/${encodeURIComponent(channel)}`, {
+      method: 'POST',
+      body: JSON.stringify({ enabled }),
+    }),
   imTest: (channel: string) =>
     request<{ ok: boolean; message?: string; error?: string }>(`/api/im/test/${encodeURIComponent(channel)}`, {
       method: 'POST',
