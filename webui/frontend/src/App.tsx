@@ -440,6 +440,8 @@ function KnowledgePage({ section }: { section: string }) {
   const [status, setStatus] = useState("")
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit')
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const pendingFileRef = useRef<KnowledgeItem | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -457,7 +459,24 @@ function KnowledgePage({ section }: { section: string }) {
 
   useEffect(() => { load().catch((e) => setStatus(e.message || String(e))) }, [load])
 
+  const dirty = content !== savedContent
+
+  const doSelectFile = (item: KnowledgeItem) => {
+    if (dirty && selected && item.path !== selected.path) {
+      setStatus("⚠ 当前文件未保存，直接切换将丢弃更改。")
+      pendingFileRef.current = item
+      return
+    }
+    setSelected(item)
+  }
+
   useEffect(() => {
+    const item = pendingFileRef.current
+    if (item) {
+      pendingFileRef.current = null
+      setSelected(item)
+      return
+    }
     if (!selected) {
       setContent("")
       setSavedContent("")
@@ -472,14 +491,22 @@ function KnowledgePage({ section }: { section: string }) {
   }, [selected?.path])
 
   const group = groups.find((g) => g.key === meta.group)
-  const dirty = content !== savedContent
 
   const save = async () => {
     if (!selected || selected.readonly) return
-    const res = await api.saveKnowledgeFile(selected.path, content)
-    setSavedContent(content)
-    setStatus(`已保存，备份：${res.backup}`)
-    await load()
+    setSaving(true)
+    setStatus("")
+    try {
+      const res = await api.saveKnowledgeFile(selected.path, content)
+      setSavedContent(content)
+      setStatus("✅ 保存成功")
+      if (res.backup) setStatus(`✅ 保存成功 · 备份：${res.backup}`)
+      await load()
+    } catch (e: any) {
+      setStatus(`❌ 保存失败：${e.message || e}`)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const backup = async () => {
@@ -502,7 +529,7 @@ function KnowledgePage({ section }: { section: string }) {
           {group?.items.map((item) => {
             const st = stats[item.name] || stats[item.path]
             return (
-              <button key={item.path} className={`knowledge-item ${selected?.path === item.path ? "is-active" : ""}`} onClick={() => setSelected(item)}>
+              <button key={item.path} className={`knowledge-item ${selected?.path === item.path ? "is-active" : ""}`} onClick={() => doSelectFile(item)}>
                 <span className="knowledge-item-name">{item.name}</span>
                 <span className="knowledge-item-path">{item.path}</span>
                 <span className="knowledge-item-meta">{formatFileSize(item.size)} · {formatRelativeTime(item.mtime)}{st?.count ? ` · 访问 ${st.count}` : ""}</span>
@@ -529,11 +556,17 @@ function KnowledgePage({ section }: { section: string }) {
                   </div>
                   <button onClick={() => navigator.clipboard?.writeText(selected.path)}>复制路径</button>
                   <button onClick={backup}>备份</button>
-                  <button onClick={() => selected && api.knowledgeFile(selected.path).then((res) => { setContent(res.content); setSavedContent(res.content) })}>重载</button>
-                  <button className="prov-btn-primary" disabled={selected.readonly || !dirty} onClick={save}>保存</button>
+                  <button onClick={() => selected && api.knowledgeFile(selected.path).then((res) => { setContent(res.content); setSavedContent(res.content); setStatus("") })}>重载</button>
+                  <button className="prov-btn-primary" disabled={selected.readonly || !dirty || saving} onClick={save}>{saving ? "保存中..." : "保存"}</button>
                 </div>
               </div>
-              {status && <div className="knowledge-status">{status}</div>}
+              {status && <div className={`knowledge-status ${status.startsWith("❌") ? "is-error" : status.startsWith("⚠") ? "is-warn" : "is-ok"}`}>{status}</div>}
+              <div className="knowledge-meta-row">
+                <span>大小：{formatFileSize(selected.size)}</span>
+                <span>修改：{formatRelativeTime(selected.mtime)}</span>
+                {selected.readonly && <span className="knowledge-readonly">只读</span>}
+                <span>生效：{section === "prompts" ? "下一轮任务生效" : section === "memory" ? "下一轮读取生效" : "下次文件读取生效"}</span>
+              </div>
               {viewMode === 'edit' ? (
                 <textarea className="knowledge-textarea" value={content} readOnly={selected.readonly} onChange={(e) => setContent(e.target.value)} spellCheck={false} />
               ) : (

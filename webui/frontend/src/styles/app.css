@@ -1978,6 +1978,35 @@ button:disabled {
   font-size: 12px;
 }
 
+.knowledge-status.is-ok {
+  color: #2f9e44;
+}
+
+.knowledge-status.is-error {
+  color: #fa5252;
+}
+
+.knowledge-status.is-warn {
+  color: #e8590c;
+}
+
+.knowledge-meta-row {
+  display: flex;
+  gap: 16px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--subtle);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.knowledge-meta-row .knowledge-readonly {
+  height: auto;
+  padding: 0;
+  background: transparent;
+  color: #fd7e14;
+}
+
 .knowledge-textarea {
   flex: 1;
   min-height: 0;
