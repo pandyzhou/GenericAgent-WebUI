@@ -437,12 +437,13 @@ const normalizeNewChatMessage = (msg?: string) => {
 const normalizeSystemMessage = (msg?: string) => {
   const text = String(msg || '').trim()
   if (!text) return ''
-  if (text.includes('���') || text.includes('�')) {
-    if (text.includes('已开启新对话')) return '已开启新对话，当前上下文已清空'
-    if (text.includes('已打开当前会话')) return '已打开当前会话'
-    if (text.includes('已恢复')) return text.replace(/���|�/g, '').trim()
+  if (!(text.includes('���') || text.includes('�'))) {
+    return text
   }
-  return text.replace(/^(✅|⚠️|❌|🆕|🔄|ℹ️|🚫|📁|🧠|📝)\s*/u, '').trim()
+  if (text.includes('已开启新对话')) return '已开启新对话，当前上下文已清空'
+  if (text.includes('已打开当前会话')) return '已打开当前会话'
+  if (text.includes('已恢复')) return text.replace(/���|�/g, '').trim()
+  return text.replace(/���|�/g, '').trim()
 }
 
 const knowledgeSectionMap: Record<string, { group: string; title: string; breadcrumb: string }> = {
