@@ -1326,6 +1326,17 @@ button:disabled {
   box-shadow: var(--shadow);
 }
 
+.slash-group + .slash-group {
+  margin-top: 8px;
+}
+
+.slash-group-title {
+  padding: 4px 9px 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .slash-item {
   width: 100%;
   min-height: 38px;

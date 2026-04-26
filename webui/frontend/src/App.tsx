@@ -404,20 +404,21 @@ type SlashCommand = {
   insert: string
   desc: string
   kind: "local" | "agent" | "limited"
+  group: "会话" | "模型" | "系统" | "Agent"
 }
 
 const slashCommands: SlashCommand[] = [
-  { name: "/help", insert: "/help", desc: "显示命令帮助", kind: "local" },
-  { name: "/status", insert: "/status", desc: "查看当前运行状态和模型", kind: "local" },
-  { name: "/stop", insert: "/stop", desc: "停止当前任务", kind: "local" },
-  { name: "/new", insert: "/new", desc: "开启新对话并清空上下文", kind: "local" },
-  { name: "/restore", insert: "/restore", desc: "恢复上次对话历史（WebUI 中建议使用历史列表）", kind: "limited" },
-  { name: "/continue", insert: "/continue", desc: "列出可恢复会话", kind: "local" },
-  { name: "/continue [n]", insert: "/continue ", desc: "恢复第 n 个会话", kind: "local" },
-  { name: "/llm", insert: "/llm", desc: "查看模型列表", kind: "local" },
-  { name: "/llm [n]", insert: "/llm ", desc: "切换到第 n 个模型", kind: "local" },
-  { name: "/resume", insert: "/resume", desc: "让 Agent 从最近历史中总结并恢复", kind: "agent" },
-  { name: "/session.<key>=<value>", insert: "/session.", desc: "设置当前 LLM session 属性", kind: "agent" },
+  { name: "/help", insert: "/help", desc: "显示命令帮助", kind: "local", group: "系统" },
+  { name: "/status", insert: "/status", desc: "查看当前运行状态和模型", kind: "local", group: "系统" },
+  { name: "/stop", insert: "/stop", desc: "停止当前任务", kind: "local", group: "系统" },
+  { name: "/new", insert: "/new", desc: "开启新对话并清空上下文", kind: "local", group: "会话" },
+  { name: "/restore", insert: "/restore", desc: "恢复上次对话历史（WebUI 中建议使用历史列表）", kind: "limited", group: "会话" },
+  { name: "/continue", insert: "/continue", desc: "列出可恢复会话", kind: "local", group: "会话" },
+  { name: "/continue [n]", insert: "/continue ", desc: "恢复第 n 个会话", kind: "local", group: "会话" },
+  { name: "/llm", insert: "/llm", desc: "查看模型列表", kind: "local", group: "模型" },
+  { name: "/llm [n]", insert: "/llm ", desc: "切换到第 n 个模型", kind: "local", group: "模型" },
+  { name: "/resume", insert: "/resume", desc: "让 Agent 从最近历史中总结并恢复", kind: "agent", group: "Agent" },
+  { name: "/session.<key>=<value>", insert: "/session.", desc: "设置当前 LLM session 属性", kind: "agent", group: "Agent" },
 ]
 
 const formatFileSize = (size: number) => {
@@ -1108,18 +1109,18 @@ export default function App() {
     const op = cmd.toLowerCase()
 
     if (op === "/help") {
-      addSystemMessage(`## 命令列表\n\n${slashCommands.map((c) => `- \`${c.name}\` — ${c.desc}`).join("\n")}`)
+      addSystemMessage(`## 命令列表\n\n${slashCommands.map((c) => `- ${c.name} — ${c.desc}`).join("\n")}`)
       setPrompt("")
       return true
     }
     if (op === "/status") {
-      addSystemMessage(`状态：${busy || status?.running ? "运行中" : "空闲"}\n\n当前模型：\`${currentLlm}\`\n\n历史条数：${status?.history_count ?? 0}`)
+      addSystemMessage(`> 系统命令执行成功\n\n状态：${busy || status?.running ? "运行中" : "空闲"}\n\n当前模型：${currentLlm}\n\n历史条数：${status?.history_count ?? 0}`)
       setPrompt("")
       return true
     }
     if (op === "/stop" || op === "/abort") {
       await stopRun()
-      addSystemMessage("已发送停止信号。")
+      addSystemMessage("> 系统命令执行成功\n\n已发送停止信号。")
       setPrompt("")
       return true
     }
@@ -1131,7 +1132,7 @@ export default function App() {
       if (arg && /^\d+$/.test(arg)) {
         await openSession(Number(arg))
       } else {
-        addSystemMessage(`## 可恢复会话\n\n${sessions.length ? sessions.map((s) => `${s.index}. ${s.rounds} 轮 · ${formatRelativeTime(s.mtime)} · ${s.preview || "未命名会话"}`).join("\n") : "暂无可恢复会话"}`)
+        addSystemMessage(`> 会话命令提示\n\n## 可恢复会话\n\n${sessions.length ? sessions.map((s) => `${s.index}. ${s.rounds} 轮 · ${formatRelativeTime(s.mtime)} · ${s.preview || "未命名会话"}`).join("\n") : "暂无可恢复会话"}`)
       }
       setPrompt("")
       return true
@@ -1139,15 +1140,15 @@ export default function App() {
     if (op === "/llm") {
       if (arg && /^\d+$/.test(arg)) {
         await switchModel(Number(arg))
-        addSystemMessage(`已切换到模型 ${arg}。`)
+        addSystemMessage(`> 模型命令执行成功\n\n已切换到模型 ${arg}。`)
       } else {
-        addSystemMessage(`## LLM 列表\n\n${(status?.llms || []).map((llm) => `${llm.current ? "→" : " "} [${llm.index}] ${llm.name}`).join("\n")}`)
+        addSystemMessage(`> 模型命令提示\n\n## LLM 列表\n\n${(status?.llms || []).map((llm) => `${llm.current ? "→" : " "} [${llm.index}] ${llm.name}`).join("\n")}`)
       }
       setPrompt("")
       return true
     }
     if (op === "/restore") {
-      addSystemMessage("WebUI 中请优先使用左侧历史会话列表，或输入 `/continue` 查看可恢复会话。")
+      addSystemMessage("> 会话命令提示\n\nWebUI 中请优先使用左侧历史会话列表，或输入 `/continue` 查看可恢复会话。")
       setPrompt("")
       return true
     }
@@ -1173,9 +1174,29 @@ export default function App() {
 
   const filteredSlashCommands = useMemo(() => {
     if (!prompt.startsWith("/")) return []
-    const head = prompt.trimStart().split(/\s+/)[0].toLowerCase()
+    const trimmed = prompt.trimStart()
+    const head = trimmed.split(/\s+/)[0].toLowerCase()
+    const argPart = trimmed.slice(head.length).trim()
+    if (head === '/llm' && argPart.length === 0) {
+      return (status?.llms || []).map((llm) => ({
+        name: `/llm ${llm.index}`,
+        insert: `/llm ${llm.index}`,
+        desc: llm.name,
+        kind: 'local' as const,
+        group: '模型' as const,
+      }))
+    }
+    if (head === '/continue' && argPart.length === 0) {
+      return sessions.slice(0, 8).map((s) => ({
+        name: `/continue ${s.index}`,
+        insert: `/continue ${s.index}`,
+        desc: `${s.rounds} 轮 · ${s.preview || '未命名会话'}`,
+        kind: 'local' as const,
+        group: '会话' as const,
+      }))
+    }
     return slashCommands.filter((cmd) => cmd.name.toLowerCase().startsWith(head) || cmd.insert.toLowerCase().startsWith(head)).slice(0, 8)
-  }, [prompt])
+  }, [prompt, status?.llms, sessions])
 
   const slashOpen = filteredSlashCommands.length > 0 && prompt.startsWith("/") && !busy
 
@@ -1428,20 +1449,29 @@ export default function App() {
               <div className="composer composer-card">
                 {slashOpen && (
                   <div className="slash-menu">
-                    {filteredSlashCommands.map((cmd, idx) => (
-                      <button
-                        key={cmd.name}
-                        type="button"
-                        className={`slash-item ${idx === slashIndex ? "is-active" : ""}`}
-                        onMouseDown={(e) => {
-                          e.preventDefault()
-                          completeSlashCommand(cmd)
-                        }}
-                      >
-                        <span className="slash-command-name">{cmd.name}</span>
-                        <span className="slash-command-desc">{cmd.desc}</span>
-                        <span className={`slash-command-kind is-${cmd.kind}`}>{cmd.kind === "local" ? "WebUI" : cmd.kind === "agent" ? "Agent" : "提示"}</span>
-                      </button>
+                    {Array.from(new Map(filteredSlashCommands.map((cmd) => [cmd.group, cmd.group])).values()).map((group) => (
+                      <div key={group} className="slash-group">
+                        <div className="slash-group-title">{group}</div>
+                        {filteredSlashCommands.filter((cmd) => cmd.group === group).map((cmd, idx) => {
+                          const globalIndex = filteredSlashCommands.findIndex((x) => x === cmd)
+                          return (
+                          <button
+                            key={cmd.name + cmd.insert}
+                            type="button"
+                            className={`slash-item ${globalIndex === slashIndex ? "is-active" : ""}`}
+                            onMouseDown={(e) => {
+                              e.preventDefault()
+                              completeSlashCommand(cmd)
+                            }}
+                          >
+                      <span className="slash-command-name">{cmd.name}</span>
+                      <span className="slash-command-desc">{cmd.desc}</span>
+                      <span className={`slash-command-kind is-${cmd.kind}`}>{cmd.kind === "local" ? "WebUI" : cmd.kind === "agent" ? "Agent" : "提示"}</span>
+                    </button>
+                          )
+                        })}
+
+                      </div>
                     ))}
                     <div className="slash-footer">↑↓ 选择 · Tab 补全 · Enter 执行</div>
                   </div>
