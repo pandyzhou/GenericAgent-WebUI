@@ -44,22 +44,19 @@ function SettingsPanel({ active, children }: { active: boolean; children: React.
 }
 
 const personalSettings: SettingsItem[] = [
-  { label: "个人资料", key: "profile", icon: "profile", group: "个人设置" },
-  { label: "通知", key: "notifications", icon: "notifications" },
-  { label: "外观与界面", key: "appearance", icon: "appearance" },
-  { label: "IM 网关", key: "gateway", icon: "gateway" },
+  { label: "外观与界面", key: "appearance", icon: "appearance", group: "个人设置" },
+  { label: "模型提供商", key: "providers", icon: "providers", group: "个人设置" },
 ]
 
 const instanceSettings: SettingsItem[] = [
-  { label: "提供商", key: "providers", icon: "providers", group: "实例管理" },
-  { label: "系统提示词", key: "prompts", icon: "prompt" },
-  { label: "记忆", key: "memory", icon: "memory" },
-  { label: "SOP", key: "sop", icon: "sop" },
-  { label: "技能", key: "skills-settings", icon: "skills" },
-  { label: "储存空间", key: "storage", icon: "storage" },
-  { label: "运行资源", key: "runtime", icon: "runtime" },
-  { label: "使用历史", key: "usage", icon: "usage" },
-  { label: "关于", key: "about", icon: "about" },
+  { label: "系统提示词", key: "prompts", icon: "prompt", group: "实例管理" },
+  { label: "记忆", key: "memory", icon: "memory", group: "实例管理" },
+  { label: "SOP", key: "sop", icon: "sop", group: "实例管理" },
+  { label: "技能", key: "skills-settings", icon: "skills", group: "实例管理" },
+  { label: "储存空间", key: "storage", icon: "storage", group: "实例管理" },
+  { label: "运行资源", key: "runtime", icon: "runtime", group: "实例管理" },
+  { label: "使用历史", key: "usage", icon: "usage", group: "实例管理" },
+  { label: "关于", key: "about", icon: "about", group: "实例管理" },
 ]
 
 const mainNavItems: { label: string; page?: Page; icon: IconName }[] = [
@@ -976,6 +973,11 @@ export default function App() {
   const slashMenuRef = useRef<HTMLDivElement | null>(null)
   const chatListRef = useRef<HTMLDivElement | null>(null)
 
+  const [cmdOpen, setCmdOpen] = useState(false)
+  const [cmdQuery, setCmdQuery] = useState("")
+  const [cmdIndex, setCmdIndex] = useState(0)
+  const cmdInputRef = useRef<HTMLInputElement | null>(null)
+
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem("ga_theme") as Theme) || "light")
   const [oled, setOled] = useState(() => localStorage.getItem("ga_oled") === "true")
   const [fullscreen, setFullscreen] = useState(() => localStorage.getItem("ga_fullscreen") === "true")
@@ -1010,9 +1012,22 @@ export default function App() {
     const onFullscreenChange = () => {
       setFullscreen(Boolean(document.fullscreenElement))
     }
-
     document.addEventListener("fullscreenchange", onFullscreenChange)
     return () => document.removeEventListener("fullscreenchange", onFullscreenChange)
+  }, [])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'k' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault()
+        setCmdOpen((prev) => !prev)
+      }
+      if (e.key === 'Escape') {
+        setCmdOpen(false)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
   }, [])
 
   useEffect(() => {
@@ -1334,15 +1349,6 @@ export default function App() {
     const trimmed = prompt.trimStart()
     const head = trimmed.split(/\s+/)[0].toLowerCase()
     const argPart = trimmed.slice(head.length).trim()
-    if (head === '/llm' && argPart.length === 0) {
-      return (status?.llms || []).map((llm) => ({
-        name: `/llm ${llm.index}`,
-        insert: `/llm ${llm.index}`,
-        desc: llm.name,
-        kind: 'local' as const,
-        group: '模型' as const,
-      }))
-    }
     if (head === '/continue' && argPart.length === 0) {
       return sessions.slice(0, 8).map((s) => ({
         name: `/continue ${s.index}`,
@@ -1353,7 +1359,24 @@ export default function App() {
       }))
     }
     return slashCommands.filter((cmd) => cmd.name.toLowerCase().startsWith(head) || cmd.insert.toLowerCase().startsWith(head)).slice(0, 8)
-  }, [prompt, status?.llms, sessions])
+  }, [prompt, sessions])
+
+  const cmdResults = useMemo(() => {
+    const q = cmdQuery.trim().toLowerCase()
+    if (!q) return []
+    const items: { type: 'session' | 'setting'; title: string; subtitle: string; action: () => void }[] = []
+    sessions.forEach((s) => {
+      if ([s.preview, s.path, `${s.rounds}`].some((v) => String(v || '').toLowerCase().includes(q))) {
+        items.push({ type: 'session', title: s.preview || '未命名会话', subtitle: `${s.rounds} 轮 · ${formatRelativeTime(s.mtime)}`, action: () => { setCmdOpen(false); openSession(s.index) } })
+      }
+    })
+    ;[...personalSettings, ...instanceSettings].forEach((s) => {
+      if ([s.label, s.key].some((v) => String(v || '').toLowerCase().includes(q))) {
+        items.push({ type: 'setting', title: s.label, subtitle: '设置', action: () => { setCmdOpen(false); setPage('settings'); setSettingsSection(s.key) } })
+      }
+    })
+    return items.slice(0, 12)
+  }, [cmdQuery, sessions])
 
   const slashOpen = filteredSlashCommands.length > 0 && prompt.startsWith("/") && !busy
 
@@ -1411,8 +1434,8 @@ export default function App() {
         <div className="topbar-right">
           <span className="topbar-version">{status?.running ? "运行中" : "空闲"}</span>
           <a className="topbar-action" href={WEBUI_ISSUES_URL} target="_blank" rel="noreferrer" title="提交 Issue">GitHub</a>
-          <div className="topbar-search">
-            <input placeholder="搜索会话与消息..." />
+          <div className="topbar-search" onClick={() => { setCmdOpen(true); setCmdQuery(''); setCmdIndex(0) }}>
+            <input placeholder="搜索会话与消息..." readOnly />
             <span>⌕</span>
           </div>
         </div>
@@ -1722,7 +1745,7 @@ export default function App() {
 
       {contextMenu && (
         <div className="context-menu" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={(e) => e.stopPropagation()}>
-          {contextMenu.type === 'session' && contextMenu.sessionIndex && (
+          {contextMenu.type === 'session' && contextMenu.sessionIndex !== undefined && (
             <>
               <button onClick={() => { openSession(contextMenu.sessionIndex!); setContextMenu(null) }}>打开对话</button>
               <button className="is-danger" onClick={() => deleteSession(contextMenu.sessionIndex!)}>删除对话</button>
@@ -1734,6 +1757,51 @@ export default function App() {
               <button onClick={() => { setMessages(messages.slice(0, contextMenu.messageIndex! + 1)); setContextMenu(null) }}>仅收起后续消息</button>
             </>
           )}
+        </div>
+      )}
+
+      {cmdOpen && (
+        <div className="cmd-overlay" onClick={() => setCmdOpen(false)}>
+          <div className="cmd-palette" onClick={(e) => e.stopPropagation()}>
+            <div className="cmd-search">
+              <span className="cmd-icon">⌕</span>
+              <input
+                autoFocus
+                placeholder="搜索会话、设置、知识..."
+                value={cmdQuery}
+                onChange={(e) => { setCmdQuery(e.target.value); setCmdIndex(0) }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') { setCmdOpen(false); return }
+                  if (e.key === 'ArrowDown') { e.preventDefault(); setCmdIndex((i) => (i + 1) % Math.max(cmdResults.length, 1)); return }
+                  if (e.key === 'ArrowUp') { e.preventDefault(); setCmdIndex((i) => (i - 1 + Math.max(cmdResults.length, 1)) % Math.max(cmdResults.length, 1)); return }
+                  if (e.key === 'Enter') { e.preventDefault(); cmdResults[cmdIndex]?.action?.(); return }
+                }}
+              />
+              <span className="cmd-hint">Esc</span>
+            </div>
+            <div className="cmd-results">
+              {cmdResults.length === 0 && (
+                <div className="cmd-empty">{cmdQuery.trim() ? '未找到匹配项' : '输入关键词搜索会话、设置项或知识文件'}</div>
+              )}
+              {cmdResults.map((r, i) => (
+                <button
+                  key={`${r.type}-${i}`}
+                  className={`cmd-result ${i === cmdIndex ? 'is-active' : ''}`}
+                  onMouseEnter={() => setCmdIndex(i)}
+                  onClick={() => r.action()}
+                >
+                  <span className="cmd-result-type">{r.type === 'session' ? '会话' : '设置'}</span>
+                  <span className="cmd-result-title">{r.title}</span>
+                  <span className="cmd-result-sub">{r.subtitle}</span>
+                </button>
+              ))}
+            </div>
+            <div className="cmd-footer">
+              <span>↑↓ 选择</span>
+              <span>Enter 跳转</span>
+              <span>Esc 关闭</span>
+            </div>
+          </div>
         </div>
       )}
     </div>
