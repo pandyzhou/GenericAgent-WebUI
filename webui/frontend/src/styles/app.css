@@ -2760,6 +2760,7 @@ button:disabled {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 14px;
+  align-items: start;
 }
 
 .im-channel-card {
@@ -2768,6 +2769,7 @@ button:disabled {
   border-radius: 10px;
   background: var(--paper);
   transition: border-color 0.15s;
+  align-self: start;
 }
 
 .im-channel-card.is-configured {
@@ -2857,6 +2859,43 @@ button:disabled {
   color: var(--text);
   font-size: 13px;
   outline: none;
+  width: 100%;
+}
+
+.im-input-wrap {
+  position: relative;
+}
+
+.im-input-wrap.is-secret input {
+  padding-right: 38px;
+}
+
+.im-secret-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 14px;
+}
+
+.im-secret-toggle:hover {
+  color: var(--text);
+}
+
+.im-secret-toggle:focus-visible {
+  outline: 2px solid var(--mantine-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .im-field input:focus {

@@ -1052,6 +1052,7 @@ function GatewayPage() {
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState<string | null>(null)
   const [testResult, setTestResult] = useState<{ key: string; ok: boolean; message: string } | null>(null)
+  const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({})
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -1071,6 +1072,7 @@ function GatewayPage() {
   const startEdit = (ch: ImChannel) => {
     setEditing(ch.key)
     setTestResult(null)
+    setShowSecrets({})
     const init: Record<string, string> = {}
     IM_CHANNEL_FIELDS[ch.key]?.forEach((f) => {
       init[f.key] = ch.fields[f.key] || ''
@@ -1081,6 +1083,7 @@ function GatewayPage() {
   const cancelEdit = () => {
     setEditing(null)
     setDraft({})
+    setShowSecrets({})
   }
 
   const save = async () => {
@@ -1091,6 +1094,7 @@ function GatewayPage() {
       await load()
       setEditing(null)
       setDraft({})
+      setShowSecrets({})
     } catch (e: any) {
       alert('保存失败: ' + (e.message || e))
     }
@@ -1151,17 +1155,34 @@ function GatewayPage() {
 
             {editing === ch.key && IM_CHANNEL_FIELDS[ch.key] && (
               <div className="im-channel-form">
-                {IM_CHANNEL_FIELDS[ch.key].map((f) => (
-                  <label key={f.key} className="im-field">
-                    <span>{f.label}</span>
-                    <input
-                      type={f.type || 'text'}
-                      value={draft[f.key] || ''}
-                      placeholder={f.placeholder || ''}
-                      onChange={(e) => setDraft((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                    />
-                  </label>
-                ))}
+                {IM_CHANNEL_FIELDS[ch.key].map((f) => {
+                  const isSecret = f.type === 'password'
+                  const revealed = Boolean(showSecrets[f.key])
+                  return (
+                    <label key={f.key} className="im-field">
+                      <span>{f.label}</span>
+                      <div className={`im-input-wrap ${isSecret ? 'is-secret' : ''}`}>
+                        <input
+                          type={isSecret && !revealed ? 'password' : 'text'}
+                          value={draft[f.key] || ''}
+                          placeholder={f.placeholder || ''}
+                          onChange={(e) => setDraft((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                        />
+                        {isSecret && (
+                          <button
+                            type="button"
+                            className="im-secret-toggle"
+                            aria-label={revealed ? '隐藏密钥' : '显示密钥'}
+                            title={revealed ? '隐藏' : '显示'}
+                            onClick={() => setShowSecrets((prev) => ({ ...prev, [f.key]: !prev[f.key] }))}
+                          >
+                            {revealed ? '🙈' : '👁'}
+                          </button>
+                        )}
+                      </div>
+                    </label>
+                  )
+                })}
                 <div className="im-channel-actions">
                   <button className="prov-btn-sm" onClick={cancelEdit} disabled={saving}>取消</button>
                   <button className="prov-btn-sm prov-btn-primary" onClick={save} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
