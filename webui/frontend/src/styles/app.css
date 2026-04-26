@@ -1,13 +1,3 @@
-@keyframes page-soft-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes panel-soft-in {
-  from { opacity: 0; transform: translateY(3px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
 :root {
   --mantine-primary: #4c6ef5;
   --bg: #f8f9fa;
@@ -318,15 +308,19 @@ button {
 .settings-main {
   min-width: 0;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   padding: 32px;
 }
 
-.settings-main > *,
-.dashboard-page,
-.session-layout,
-.settings-shell {
-  animation: page-soft-in 160ms ease-out both;
+.settings-panel {
+  display: none;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.settings-panel.is-active {
+  display: block;
 }
 
 .provider-card,
@@ -344,25 +338,7 @@ button {
   transform: translateY(-1px);
 }
 
-.storage-detail,
-.knowledge-editor,
-.provider-card,
-.about-card {
-  animation: panel-soft-in 130ms ease-out both;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .settings-main > *,
-  .dashboard-page,
-  .session-layout,
-  .settings-shell,
-  .storage-detail,
-  .knowledge-editor,
-  .provider-card,
-  .about-card {
-    animation: none;
-  }
-
   .primary-nav-item,
   .recent-item,
   .settings-nav-item,

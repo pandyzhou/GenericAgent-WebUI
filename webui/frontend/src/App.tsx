@@ -39,6 +39,10 @@ type SettingsItem = {
   group?: string
 }
 
+function SettingsPanel({ active, children }: { active: boolean; children: React.ReactNode }) {
+  return <div className={`settings-panel ${active ? 'is-active' : ''}`}>{children}</div>
+}
+
 const personalSettings: SettingsItem[] = [
   { label: "个人资料", key: "profile", icon: "profile", group: "个人设置" },
   { label: "通知", key: "notifications", icon: "notifications" },
@@ -1171,11 +1175,14 @@ export default function App() {
               </div>
             </aside>
             <main className="settings-main">
-              {settingsSection === "providers" && <ProvidersPage />}
-              {settingsSection === "storage" && <StoragePage />}
-              {knowledgeSectionMap[settingsSection] && <KnowledgePage section={settingsSection} />}
-              {settingsSection === "about" && <AboutPage />}
-              {settingsSection === "appearance" && (
+              <SettingsPanel active={settingsSection === "providers"}><ProvidersPage /></SettingsPanel>
+              <SettingsPanel active={settingsSection === "storage"}><StoragePage /></SettingsPanel>
+              <SettingsPanel active={settingsSection === "prompts"}><KnowledgePage section="prompts" /></SettingsPanel>
+              <SettingsPanel active={settingsSection === "memory"}><KnowledgePage section="memory" /></SettingsPanel>
+              <SettingsPanel active={settingsSection === "sop"}><KnowledgePage section="sop" /></SettingsPanel>
+              <SettingsPanel active={settingsSection === "skills-settings"}><KnowledgePage section="skills-settings" /></SettingsPanel>
+              <SettingsPanel active={settingsSection === "about"}><AboutPage /></SettingsPanel>
+              <SettingsPanel active={settingsSection === "appearance"}>
                 <div className="appearance-page">
                   <div className="settings-breadcrumb">个人设置</div>
                   <h2 className="settings-title">外观与界面</h2>
@@ -1224,16 +1231,17 @@ export default function App() {
                     </div>
                   </section>
                 </div>
-              )}
-              {settingsSection !== "providers" && settingsSection !== "storage" && !knowledgeSectionMap[settingsSection] && settingsSection !== "about" && settingsSection !== "appearance" && (() => {
-                const label = [...personalSettings, ...instanceSettings].find((item) => item.key === settingsSection)?.label
-                return (
-                  <div className="settings-placeholder">
-                    <h2>{label}</h2>
-                    <p>该设置页先作为 Narra 风格占位，后续可接入 GenericAgent 对应配置。</p>
-                  </div>
-                )
-              })()}
+              </SettingsPanel>
+              {[...personalSettings, ...instanceSettings]
+                .filter((item) => !["providers", "storage", "prompts", "memory", "sop", "skills-settings", "about", "appearance"].includes(item.key))
+                .map((item) => (
+                  <SettingsPanel key={item.key} active={settingsSection === item.key}>
+                    <div className="settings-placeholder">
+                      <h2>{item.label}</h2>
+                      <p>该设置页先作为 Narra 风格占位，后续可接入 GenericAgent 对应配置。</p>
+                    </div>
+                  </SettingsPanel>
+                ))}
             </main>
           </div>
         )}
