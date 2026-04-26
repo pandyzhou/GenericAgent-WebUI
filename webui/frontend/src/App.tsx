@@ -1046,6 +1046,7 @@ const IM_CHANNEL_FIELDS: Record<string, { key: string; label: string; type?: str
 function GatewayPage() {
   const [channels, setChannels] = useState<ImChannel[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
   const [draft, setDraft] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
@@ -1054,11 +1055,13 @@ function GatewayPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const res = await api.imConfig()
       setChannels(res.channels)
     } catch (e: any) {
       console.error('加载 IM 配置失败', e)
+      setError(e.message || '加载失败')
     }
     setLoading(false)
   }, [])
@@ -1113,6 +1116,8 @@ function GatewayPage() {
       <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 16 }}>配置各 IM 渠道接入 GenericAgent。配置保存在 mykey.py 中。</p>
 
       {loading && <p style={{ color: 'var(--muted)' }}>加载中...</p>}
+      {error && <p style={{ color: '#fa5252' }}>错误: {error}</p>}
+      {!loading && !error && channels.length === 0 && <p style={{ color: 'var(--muted)' }}>暂无渠道数据</p>}
 
       <div className="im-channel-grid">
         {channels.map((ch) => (
