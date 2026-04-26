@@ -446,6 +446,14 @@ const normalizeSystemMessage = (msg?: string) => {
   return text.replace(/���|�/g, '').trim()
 }
 
+const getSystemMessageTone = (content: string): 'success' | 'warning' | 'error' | 'info' => {
+  const text = String(content || '')
+  if (/失败|错误|无法|没有|超时|HTTP\s*[45]/.test(text) || text.startsWith('❌')) return 'error'
+  if (/提示|注意|降级|仅恢复上下文|请优先使用/.test(text) || text.startsWith('⚠️')) return 'warning'
+  if (/成功|已切换|已恢复|已打开|已开启|已发送/.test(text) || text.startsWith('✅')) return 'success'
+  return 'info'
+}
+
 const knowledgeSectionMap: Record<string, { group: string; title: string; breadcrumb: string }> = {
   prompts: { group: "prompts", title: "系统提示词", breadcrumb: "实例管理" },
   memory: { group: "memory", title: "记忆", breadcrumb: "实例管理" },
@@ -1584,7 +1592,7 @@ export default function App() {
                     </div>
                   </div>
                 ) : messages.map((m, i) => (
-                  <div key={`${m.role}-${i}-${m.createdAt || 0}`} className={`message message--${m.role} ${m.status === 'error' ? 'is-error' : ''} ${m.status === 'streaming' ? 'is-streaming' : ''}`} onContextMenu={(e) => openContextMenu(e, { type: 'message', messageIndex: i })}>
+                  <div key={`${m.role}-${i}-${m.createdAt || 0}`} className={`message message--${m.role} ${m.role === 'system' ? `message--system-${getSystemMessageTone(m.content)}` : ''} ${m.status === 'error' ? 'is-error' : ''} ${m.status === 'streaming' ? 'is-streaming' : ''}`} onContextMenu={(e) => openContextMenu(e, { type: 'message', messageIndex: i })}>
                     <div className="message__avatar">{m.role === "user" ? "我" : m.role === "assistant" ? "GA" : "·"}</div>
                     <div className="message__body">
                       <div className="message__meta">

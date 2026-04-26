@@ -1288,9 +1288,33 @@ button:disabled {
 }
 
 .message--system .message__body {
-  background: var(--subtle);
-  color: var(--muted);
-  border-style: dashed;
+  color: var(--text);
+  border-style: solid;
+  border-left-width: 4px;
+}
+
+.message--system-info .message__body {
+  background: rgba(76, 110, 245, 0.06);
+  border-color: rgba(76, 110, 245, 0.24);
+  border-left-color: var(--mantine-primary);
+}
+
+.message--system-success .message__body {
+  background: rgba(64, 192, 87, 0.08);
+  border-color: rgba(64, 192, 87, 0.24);
+  border-left-color: #2f9e44;
+}
+
+.message--system-warning .message__body {
+  background: rgba(253, 126, 20, 0.08);
+  border-color: rgba(253, 126, 20, 0.24);
+  border-left-color: #e8590c;
+}
+
+.message--system-error .message__body {
+  background: rgba(250, 82, 82, 0.08);
+  border-color: rgba(250, 82, 82, 0.24);
+  border-left-color: #fa5252;
 }
 
 .message.is-error .message__body {
