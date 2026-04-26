@@ -2776,8 +2776,8 @@ button:disabled {
   border-color: var(--mantine-primary);
 }
 
-.im-channel-card.is-editing {
-  border-color: #40c057;
+.im-channel-card:hover {
+  border-color: var(--mantine-primary);
 }
 
 .im-channel-head {
@@ -2785,7 +2785,6 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
 }
 
 .im-channel-head strong {
@@ -2855,19 +2854,113 @@ button:disabled {
   vertical-align: middle;
 }
 
-.im-runtime-meta {
+.im-detail-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.48);
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  margin: 8px 0;
-  font-size: 12px;
-  color: var(--muted);
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1200;
 }
 
-.im-runtime-message {
-  margin: 8px 0;
+.im-detail-modal {
+  width: min(640px, 100%);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.im-detail-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.im-detail-modal-head h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.im-detail-modal-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.im-detail-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.im-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 12px 18px;
   font-size: 12px;
-  color: var(--dimmed);
+  color: var(--muted);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.im-detail-meta .is-err {
+  color: #fa5252;
+}
+
+.im-detail-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.im-detail-tabs button {
+  padding: 10px 16px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.im-detail-tabs button.is-active {
+  color: var(--mantine-primary);
+  border-bottom-color: var(--mantine-primary);
+}
+
+.im-detail-config {
+  padding: 16px 18px 20px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.im-detail-log {
+  margin: 0;
+  padding: 16px 18px 20px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text);
+  max-height: 300px;
 }
 
 .im-log-modal-backdrop {

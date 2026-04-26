@@ -1053,19 +1053,180 @@ function SecretEyeIcon({ open }: { open: boolean }) {
   )
 }
 
+function ImDetailModal({
+  ch,
+  status,
+  onClose,
+  onStart,
+  onStop,
+  onRestart,
+  onTest,
+  onToggleAutoRestart,
+  onOpenLog,
+  testResult,
+  testing,
+  operating,
+}: {
+  ch: ImChannel
+  status: ImChannelStatus | undefined
+  onClose: () => void
+  onStart: () => void
+  onStop: () => void
+  onRestart: () => void
+  onTest: () => void
+  onToggleAutoRestart: () => void
+  onOpenLog: () => void
+  testResult: { ok: boolean; message: string } | null
+  testing: boolean
+  operating: string | null
+}) {
+  const [detailTab, setDetailTab] = useState<'config' | 'log'>('config')
+  const [editDraft, setEditDraft] = useState<Record<string, string>>({})
+  const [editSecrets, setEditSecrets] = useState<Record<string, boolean>>({})
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    const init: Record<string, string> = {}
+    IM_CHANNEL_FIELDS[ch.key]?.forEach((f) => {
+      init[f.key] = ch.fields[f.key] || ''
+    })
+    setEditDraft(init)
+    setEditSecrets({})
+  }, [ch])
+
+  const canManage = status?.managed && status?.script_exists
+
+  const saveConfig = async () => {
+    setSaving(true)
+    try {
+      await api.imSaveConfig(ch.key, editDraft)
+      onClose()
+      window.location.reload()
+    } catch (e: any) {
+      alert('保存失败: ' + (e.message || e))
+    }
+    setSaving(false)
+  }
+
+  return (
+    <div className="im-detail-modal-backdrop" onClick={onClose}>
+      <div className="im-detail-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="im-detail-modal-head">
+          <div>
+            <h3>{ch.name}</h3>
+            <div className="im-detail-modal-tags">
+              <span className={`im-channel-status ${ch.configured ? 'is-on' : ''}`}>{ch.configured ? '已配置' : '未配置'}</span>
+              <span className={`im-runtime-status ${status?.running ? 'is-running' : 'is-stopped'}`}>{status?.running ? '运行中' : '未运行'}</span>
+              {status?.auto_restart ? <span className="im-auto-restart-tag">自动恢复</span> : null}
+            </div>
+          </div>
+          <button className="prov-btn-sm" onClick={onClose}>关闭</button>
+        </div>
+
+        <div className="im-detail-modal-actions">
+          {canManage && !status?.running && (
+            <button className="prov-btn-sm prov-btn-primary" onClick={onStart} disabled={operating !== null || !ch.configured}>
+              {operating === 'start' ? '启动中...' : '启动'}
+            </button>
+          )}
+          {canManage && status?.running && (
+            <>
+              <button className="prov-btn-sm prov-btn-outline" onClick={onRestart} disabled={operating !== null}>
+                {operating === 'restart' ? '重启中...' : '重启'}
+              </button>
+              <button className="prov-btn-sm prov-btn-danger" onClick={onStop} disabled={operating !== null}>
+                {operating === 'stop' ? '停止中...' : '停止'}
+              </button>
+            </>
+          )}
+          {ch.configured && (
+            <button className="prov-btn-sm" onClick={onTest} disabled={testing || operating !== null}>
+              {testing ? '测试中...' : '测试连接'}
+            </button>
+          )}
+          <button className={`prov-btn-sm ${status?.auto_restart ? 'prov-btn-primary' : ''}`} onClick={onToggleAutoRestart}>
+            自动恢复: {status?.auto_restart ? '开' : '关'}
+          </button>
+        </div>
+
+        {testResult && (
+          <div className={`im-test-result ${testResult.ok ? 'is-ok' : 'is-err'}`}>
+            {testResult.message}
+          </div>
+        )}
+
+        {status && (
+          <div className="im-detail-meta">
+            {status.pid ? <span>PID: {status.pid}</span> : <span>PID: -</span>}
+            {status.started_at ? <span>启动时间: {new Date(status.started_at * 1000).toLocaleString()}</span> : null}
+            {status.last_exit_code !== null ? <span>退出码: {status.last_exit_code}</span> : null}
+            {!status.script_exists ? <span className="is-err">脚本缺失</span> : null}
+            {status.message ? <span>{status.message}</span> : null}
+          </div>
+        )}
+
+        <div className="im-detail-tabs">
+          <button className={detailTab === 'config' ? 'is-active' : ''} onClick={() => setDetailTab('config')}>配置</button>
+          <button className={detailTab === 'log' ? 'is-active' : ''} onClick={() => { setDetailTab('log'); onOpenLog() }}>日志</button>
+        </div>
+
+        {detailTab === 'config' && IM_CHANNEL_FIELDS[ch.key] && (
+          <div className="im-detail-config">
+            {IM_CHANNEL_FIELDS[ch.key].map((f) => {
+              const isSecret = f.type === 'password'
+              const revealed = Boolean(editSecrets[f.key])
+              return (
+                <label key={f.key} className="im-field">
+                  <span>{f.label}</span>
+                  <div className={`im-input-wrap ${isSecret ? 'is-secret' : ''}`}>
+                    <input
+                      type={isSecret && !revealed ? 'password' : 'text'}
+                      value={editDraft[f.key] || ''}
+                      placeholder={f.placeholder || ''}
+                      onChange={(e) => setEditDraft((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                    />
+                    {isSecret && (
+                      <button
+                        type="button"
+                        className="im-secret-toggle"
+                        aria-label={revealed ? '隐藏密钥' : '显示密钥'}
+                        title={revealed ? '隐藏' : '显示'}
+                        onClick={() => setEditSecrets((prev) => ({ ...prev, [f.key]: !prev[f.key] }))}
+                      >
+                        <SecretEyeIcon open={revealed} />
+                      </button>
+                    )}
+                  </div>
+                </label>
+              )
+            })}
+            <div className="im-channel-actions">
+              <button className="prov-btn-sm" onClick={onClose} disabled={saving}>取消</button>
+              <button className="prov-btn-sm prov-btn-primary" onClick={saveConfig} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
+            </div>
+          </div>
+        )}
+
+        {detailTab === 'log' && status?.log_tail?.length ? (
+          <pre className="im-detail-log">{status.log_tail.join('\n')}</pre>
+        ) : detailTab === 'log' ? (
+          <p style={{ color: 'var(--muted)', padding: '20px 0' }}>暂无日志</p>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
 function GatewayPage() {
   const [channels, setChannels] = useState<ImChannel[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [editing, setEditing] = useState<string | null>(null)
-  const [draft, setDraft] = useState<Record<string, string>>({})
-  const [saving, setSaving] = useState(false)
-  const [testing, setTesting] = useState<string | null>(null)
-  const [operating, setOperating] = useState<string | null>(null)
   const [statuses, setStatuses] = useState<Record<string, ImChannelStatus>>({})
+  const [detailChannel, setDetailChannel] = useState<string | null>(null)
   const [logViewer, setLogViewer] = useState<{ channel: string; title: string; path: string; content: string; truncated: boolean; loading: boolean; live: boolean } | null>(null)
   const [testResult, setTestResult] = useState<{ key: string; ok: boolean; message: string } | null>(null)
-  const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({})
+  const [testing, setTesting] = useState<string | null>(null)
+  const [operating, setOperating] = useState<string | null>(null)
 
   const loadStatus = useCallback(async () => {
     try {
@@ -1099,38 +1260,6 @@ function GatewayPage() {
     return () => window.clearInterval(timer)
   }, [loadStatus])
 
-  const startEdit = (ch: ImChannel) => {
-    setEditing(ch.key)
-    setTestResult(null)
-    setShowSecrets({})
-    const init: Record<string, string> = {}
-    IM_CHANNEL_FIELDS[ch.key]?.forEach((f) => {
-      init[f.key] = ch.fields[f.key] || ''
-    })
-    setDraft(init)
-  }
-
-  const cancelEdit = () => {
-    setEditing(null)
-    setDraft({})
-    setShowSecrets({})
-  }
-
-  const save = async () => {
-    if (!editing) return
-    setSaving(true)
-    try {
-      await api.imSaveConfig(editing, draft)
-      await load()
-      setEditing(null)
-      setDraft({})
-      setShowSecrets({})
-    } catch (e: any) {
-      alert('保存失败: ' + (e.message || e))
-    }
-    setSaving(false)
-  }
-
   const test = async (key: string) => {
     setTesting(key)
     setTestResult(null)
@@ -1157,6 +1286,15 @@ function GatewayPage() {
     setOperating(null)
   }
 
+  const toggleAutoRestart = async (key: string, current: boolean) => {
+    try {
+      await api.imSetAutoRestart(key, !current)
+      await loadStatus()
+    } catch {
+      // ignore
+    }
+  }
+
   const openLogViewer = async (key: string, title: string) => {
     setLogViewer({ channel: key, title, path: '', content: '', truncated: false, loading: true, live: true })
     try {
@@ -1170,7 +1308,6 @@ function GatewayPage() {
   const refreshLogViewer = async () => {
     if (!logViewer) return
     const key = logViewer.channel
-    const title = logViewer.title
     try {
       const res = await api.imLog(key)
       setLogViewer((prev) => prev && prev.channel === key ? { ...prev, path: res.log_path, content: res.content, truncated: res.truncated, loading: false } : prev)
@@ -1193,15 +1330,6 @@ function GatewayPage() {
     setLogViewer((prev) => prev ? { ...prev, live: !prev.live } : null)
   }
 
-  const toggleAutoRestart = async (key: string, current: boolean) => {
-    try {
-      await api.imSetAutoRestart(key, !current)
-      await loadStatus()
-    } catch {
-      // ignore
-    }
-  }
-
   useEffect(() => {
     if (!logViewer?.live) return
     const timer = window.setInterval(() => {
@@ -1209,6 +1337,11 @@ function GatewayPage() {
     }, 2000)
     return () => window.clearInterval(timer)
   }, [logViewer?.live, logViewer?.channel])
+
+  const detailCh = detailChannel ? channels.find((c) => c.key === detailChannel) : undefined
+  const detailStatus = detailChannel ? statuses[detailChannel] : undefined
+  const detailTestResult = testResult?.key === detailChannel ? testResult : null
+  const detailOperating = detailChannel && operating?.endsWith(`:${detailChannel}`) ? operating.split(':')[0] : null
 
   return (
     <div className="appearance-page">
@@ -1223,125 +1356,42 @@ function GatewayPage() {
       <div className="im-channel-grid">
         {channels.map((ch) => {
           const status = statuses[ch.key]
-          const canManage = status?.managed && status?.script_exists
-          const busyAction = operating?.endsWith(`:${ch.key}`) ? operating.split(':')[0] : null
           return (
-          <div key={ch.key} className={`im-channel-card ${ch.configured ? 'is-configured' : ''} ${editing === ch.key ? 'is-editing' : ''}`}>
-            <div className="im-channel-head">
-              <div>
-                <strong>{ch.name}</strong>
-                <span className={`im-channel-status ${ch.configured ? 'is-on' : ''}`}>{ch.configured ? '已配置' : '未配置'}</span>
-                <span className={`im-runtime-status ${status?.running ? 'is-running' : 'is-stopped'}`}>{status?.running ? '运行中' : '未运行'}</span>
-                {status?.auto_restart ? <span className="im-auto-restart-tag">自动恢复</span> : null}
-              </div>
-              {ch.note ? (
-                <span className="im-channel-note">{ch.note}</span>
-              ) : (
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                  {canManage && !status?.running && (
-                    <button className="prov-btn-sm prov-btn-primary" onClick={() => runAction(ch.key, 'start')} disabled={busyAction !== null || !ch.configured}>
-                      {busyAction === 'start' ? '启动中...' : '启动'}
-                    </button>
-                  )}
-                  {canManage && status?.running && (
-                    <>
-                      <button className="prov-btn-sm prov-btn-outline" onClick={() => runAction(ch.key, 'restart')} disabled={busyAction !== null}>
-                        {busyAction === 'restart' ? '重启中...' : '重启'}
-                      </button>
-                      <button className="prov-btn-sm prov-btn-danger" onClick={() => runAction(ch.key, 'stop')} disabled={busyAction !== null}>
-                        {busyAction === 'stop' ? '停止中...' : '停止'}
-                      </button>
-                    </>
-                  )}
-                  {ch.configured && (
-                    <button className="prov-btn-sm" onClick={() => test(ch.key)} disabled={testing === ch.key || busyAction !== null}>
-                      {testing === ch.key ? '测试中...' : '测试连接'}
-                    </button>
-                  )}
-                  <button className="prov-btn-sm" onClick={() => openLogViewer(ch.key, ch.name)}>
-                    查看日志
-                  </button>
-                  <button className={`prov-btn-sm ${status?.auto_restart ? 'prov-btn-primary' : ''}`} onClick={() => toggleAutoRestart(ch.key, Boolean(status?.auto_restart))}>
-                    自动恢复: {status?.auto_restart ? '开' : '关'}
-                  </button>
-                  <button className="prov-btn-sm" onClick={() => editing === ch.key ? cancelEdit() : startEdit(ch)}>
-                    {editing === ch.key ? '收起' : '编辑'}
-                  </button>
+            <div
+              key={ch.key}
+              className={`im-channel-card ${ch.configured ? 'is-configured' : ''}`}
+              onClick={() => setDetailChannel(ch.key)}
+              style={{ cursor: 'pointer' }}
+            >
+              <div className="im-channel-head">
+                <div>
+                  <strong>{ch.name}</strong>
+                  <span className={`im-channel-status ${ch.configured ? 'is-on' : ''}`}>{ch.configured ? '已配置' : '未配置'}</span>
+                  <span className={`im-runtime-status ${status?.running ? 'is-running' : 'is-stopped'}`}>{status?.running ? '运行中' : '未运行'}</span>
                 </div>
-              )}
+                <button className="prov-btn-sm" onClick={(e) => { e.stopPropagation(); setDetailChannel(ch.key) }}>详情</button>
+              </div>
             </div>
-
-            {testResult?.key === ch.key && (
-              <div className={`im-test-result ${testResult.ok ? 'is-ok' : 'is-err'}`}>
-                {testResult.message}
-              </div>
-            )}
-
-            {status && (
-              <div className="im-runtime-meta">
-                {status.pid ? <span>PID: {status.pid}</span> : <span>PID: -</span>}
-                {status.started_at ? <span>启动时间: {new Date(status.started_at * 1000).toLocaleString()}</span> : null}
-                {status.last_exit_code !== null ? <span>退出码: {status.last_exit_code}</span> : null}
-                {!status.script_exists ? <span>脚本缺失</span> : null}
-              </div>
-            )}
-
-            {status?.message && (
-              <div className="im-runtime-message">{status.message}</div>
-            )}
-
-            {status?.log_tail?.length ? (
-              <pre className="im-log-tail">{status.log_tail.join('\n')}</pre>
-            ) : null}
-
-            {editing === ch.key && IM_CHANNEL_FIELDS[ch.key] && (
-              <div className="im-channel-form">
-                {IM_CHANNEL_FIELDS[ch.key].map((f) => {
-                  const isSecret = f.type === 'password'
-                  const revealed = Boolean(showSecrets[f.key])
-                  return (
-                    <label key={f.key} className="im-field">
-                      <span>{f.label}</span>
-                      <div className={`im-input-wrap ${isSecret ? 'is-secret' : ''}`}>
-                        <input
-                          type={isSecret && !revealed ? 'password' : 'text'}
-                          value={draft[f.key] || ''}
-                          placeholder={f.placeholder || ''}
-                          onChange={(e) => setDraft((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                        />
-                        {isSecret && (
-                          <button
-                            type="button"
-                            className="im-secret-toggle"
-                            aria-label={revealed ? '隐藏密钥' : '显示密钥'}
-                            title={revealed ? '隐藏' : '显示'}
-                            onClick={() => setShowSecrets((prev) => ({ ...prev, [f.key]: !prev[f.key] }))}
-                          >
-                            <SecretEyeIcon open={revealed} />
-                          </button>
-                        )}
-                      </div>
-                    </label>
-                  )
-                })}
-                <div className="im-channel-actions">
-                  <button className="prov-btn-sm" onClick={cancelEdit} disabled={saving}>取消</button>
-                  <button className="prov-btn-sm prov-btn-primary" onClick={save} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
-                </div>
-              </div>
-            )}
-
-            {ch.configured && !editing && (
-              <div className="im-channel-fields">
-                {Object.entries(ch.fields).slice(0, 3).map(([k, v]) => (
-                  <span key={k} className="im-field-tag">{k}: {v}</span>
-                ))}
-              </div>
-            )}
-          </div>
           )
         })}
       </div>
+
+      {detailCh && (
+        <ImDetailModal
+          ch={detailCh}
+          status={detailStatus}
+          onClose={() => setDetailChannel(null)}
+          onStart={() => runAction(detailCh.key, 'start')}
+          onStop={() => runAction(detailCh.key, 'stop')}
+          onRestart={() => runAction(detailCh.key, 'restart')}
+          onTest={() => test(detailCh.key)}
+          onToggleAutoRestart={() => toggleAutoRestart(detailCh.key, Boolean(detailStatus?.auto_restart))}
+          onOpenLog={() => openLogViewer(detailCh.key, detailCh.name)}
+          testResult={detailTestResult}
+          testing={testing === detailCh.key}
+          operating={detailOperating}
+        />
+      )}
 
       {logViewer && (
         <div className="im-log-modal-backdrop" onClick={() => setLogViewer(null)}>
