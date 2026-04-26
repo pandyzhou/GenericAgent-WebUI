@@ -993,13 +993,15 @@ def api_provider_test(key):
         }
 
     try:
+        started = time.time()
         resp = http_requests.post(url, headers=headers, json=body, timeout=30, verify=False)
+        elapsed_ms = int((time.time() - started) * 1000)
         if resp.status_code == 200:
-            return {'ok': True, 'message': '连接成功'}
+            return {'ok': True, 'message': '连接成功', 'elapsed_ms': elapsed_ms}
         # Some APIs return 201 or other 2xx
         if 200 <= resp.status_code < 300:
-            return {'ok': True, 'message': f'连接成功 (HTTP {resp.status_code})'}
-        return {'ok': False, 'error': f'HTTP {resp.status_code}: {resp.text[:300]}'}
+            return {'ok': True, 'message': f'连接成功 (HTTP {resp.status_code})', 'elapsed_ms': elapsed_ms}
+        return {'ok': False, 'error': f'HTTP {resp.status_code}: {resp.text[:300]}', 'elapsed_ms': elapsed_ms}
     except http_requests.exceptions.Timeout:
         return {'ok': False, 'error': '连接超时（30秒）'}
     except http_requests.exceptions.ConnectionError as e:

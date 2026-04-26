@@ -150,7 +150,7 @@ export const api = {
   providerModels: (key: string) =>
     request<{ ok: boolean; models: string[] }>(`/api/providers/${key}/models`, { method: 'POST', body: '{}' }),
   providerTest: (key: string) =>
-    request<{ ok: boolean; message?: string; error?: string }>(`/api/providers/${key}/test`, { method: 'POST', body: '{}' }),
+    request<{ ok: boolean; message?: string; error?: string; elapsed_ms?: number }>(`/api/providers/${key}/test`, { method: 'POST', body: '{}' }),
   reload: () => request<{ ok: boolean; llms: { index: number; name: string; current: boolean }[] }>('/api/reload', { method: 'POST', body: '{}' }),
   knowledge: () => request<{ ok: boolean; groups: KnowledgeGroup[] }>('/api/knowledge'),
   knowledgeFile: (path: string) => request<KnowledgeFile>(`/api/knowledge/file?path=${encodeURIComponent(path)}`),

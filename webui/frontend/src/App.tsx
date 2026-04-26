@@ -147,16 +147,16 @@ const TYPE_LABELS: Record<string, string> = {
   claude: "Claude",
 }
 
-const ProvidersPage = () => {
+const ProvidersPage = ({ currentLlm }: { currentLlm: string }) => {
   const [providers, setProviders] = useState<Provider[]>([])
   const [loading, setLoading] = useState(true)
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [draft, setDraft] = useState<Partial<Provider> & { apikey?: string }>({})
   const [adding, setAdding] = useState(false)
-  const [modelsList, setModelsList] = useState<string[]>([])
-  const [modelsLoading, setModelsLoading] = useState(false)
-  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null)
-  const [testLoading, setTestLoading] = useState(false)
+  const [modelsCache, setModelsCache] = useState<Record<string, string[]>>({})
+  const [modelsLoadingKey, setModelsLoadingKey] = useState<string | null>(null)
+  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string; elapsed?: number } | null>(null)
+  const [testLoadingKey, setTestLoadingKey] = useState<string | null>(null)
 
   const loadProviders = useCallback(async () => {
     try {
@@ -171,7 +171,6 @@ const ProvidersPage = () => {
   const startEdit = (p: Provider) => {
     setEditingKey(p.key)
     setDraft({ ...p, apikey: "" })
-    setModelsList([])
     setTestResult(null)
     setAdding(false)
   }
@@ -180,7 +179,6 @@ const ProvidersPage = () => {
     setAdding(true)
     setEditingKey(null)
     setDraft({ type: "oai", name: "", apikey: "", apibase: "", model: "", api_mode: "chat_completions" })
-    setModelsList([])
     setTestResult(null)
   }
 
@@ -188,7 +186,6 @@ const ProvidersPage = () => {
     setEditingKey(null)
     setAdding(false)
     setDraft({})
-    setModelsList([])
     setTestResult(null)
   }
 
@@ -213,30 +210,35 @@ const ProvidersPage = () => {
     await loadProviders()
   }
 
-  const fetchModels = async (key: string) => {
-    setModelsLoading(true)
-    setModelsList([])
+  const fetchModels = async (key: string, force = false) => {
+    if (!force && modelsCache[key]?.length) return
+    setModelsLoadingKey(key)
     try {
       const res = await api.providerModels(key)
-      if (res.ok && res.models) setModelsList(res.models)
-      else setModelsList([])
-    } catch { setModelsList([]) }
-    setModelsLoading(false)
+      setModelsCache((prev) => ({ ...prev, [key]: res.ok && res.models ? res.models : [] }))
+    } catch {
+      setModelsCache((prev) => ({ ...prev, [key]: [] }))
+    }
+    setModelsLoadingKey(null)
   }
 
   const testConnection = async (key: string) => {
-    setTestLoading(true)
+    setTestLoadingKey(key)
     setTestResult(null)
     try {
       const res = await api.providerTest(key)
-      setTestResult({ ok: res.ok, msg: res.ok ? "连接成功" : (res.error || "连接失败") })
+      setTestResult({ ok: res.ok, msg: res.ok ? "连接成功" : (res.error || "连接失败"), elapsed: res.elapsed_ms })
     } catch (e: any) {
       setTestResult({ ok: false, msg: e.message || "连接失败" })
     }
-    setTestLoading(false)
+    setTestLoadingKey(null)
   }
 
-  const EditForm = ({ providerKey }: { providerKey: string | null }) => (
+  const currentModelName = useMemo(() => providers.find((p) => p.model && p.model === currentLlm)?.model || null, [providers, currentLlm])
+
+  const EditForm = ({ providerKey }: { providerKey: string | null }) => {
+    const cachedModels = providerKey ? (modelsCache[providerKey] || []) : []
+    return (
     <div className="prov-edit-form">
       <div className="prov-edit-grid">
         <label>名称<input value={draft.name || ""} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></label>
@@ -253,17 +255,17 @@ const ProvidersPage = () => {
         <label className="prov-model-field">
           模型
           <div className="prov-model-row">
-            {modelsList.length > 0 ? (
+            {cachedModels.length > 0 ? (
               <select value={draft.model || ""} onChange={(e) => setDraft({ ...draft, model: e.target.value })}>
                 <option value="">选择模型...</option>
-                {modelsList.map((m) => <option key={m} value={m}>{m}</option>)}
+                {cachedModels.map((m) => <option key={m} value={m}>{m}</option>)}
               </select>
             ) : (
               <input value={draft.model || ""} onChange={(e) => setDraft({ ...draft, model: e.target.value })} />
             )}
             {providerKey && (
-              <button type="button" className="prov-btn-sm" disabled={modelsLoading} onClick={() => fetchModels(providerKey)}>
-                {modelsLoading ? "获取中..." : "获取模型列表"}
+              <button type="button" className="prov-btn-sm" disabled={modelsLoadingKey === providerKey} onClick={() => fetchModels(providerKey, true)}>
+                {modelsLoadingKey === providerKey ? "获取中..." : cachedModels.length ? "刷新模型列表" : "获取模型列表"}
               </button>
             )}
           </div>
@@ -289,17 +291,24 @@ const ProvidersPage = () => {
       </div>
       <div className="prov-edit-actions">
         {providerKey && (
-          <button type="button" className={`prov-btn-sm ${testLoading ? "" : "prov-btn-outline"}`} disabled={testLoading} onClick={() => testConnection(providerKey)}>
-            {testLoading ? "测试中..." : "测试连接"}
+          <button type="button" className={`prov-btn-sm ${testLoadingKey === providerKey ? "" : "prov-btn-outline"}`} disabled={testLoadingKey === providerKey} onClick={() => testConnection(providerKey)}>
+            {testLoadingKey === providerKey ? "测试中..." : "测试连接"}
           </button>
         )}
-        {testResult && <span className={`prov-test-result ${testResult.ok ? "is-ok" : "is-err"}`}>{testResult.msg}</span>}
+        {testResult && (
+          <div className={`prov-test-card ${testResult.ok ? "is-ok" : "is-err"}`}>
+            <strong>{testResult.ok ? "连接正常" : "连接失败"}</strong>
+            <span>{testResult.msg}</span>
+            {testResult.elapsed ? <small>{testResult.elapsed} ms</small> : null}
+          </div>
+        )}
         <span style={{ flex: 1 }} />
         <button type="button" className="prov-btn-sm" onClick={cancelEdit}>取消</button>
         <button type="button" className="prov-btn-sm prov-btn-primary" onClick={saveEdit}>保存</button>
       </div>
     </div>
-  )
+    )
+  }
 
   return (
     <div className="appearance-page">
@@ -316,6 +325,7 @@ const ProvidersPage = () => {
       {providers.map((p) => {
         const modelLines = [p.model].filter(Boolean)
         const meta = [p.apibase, p.api_mode, p.apikey].filter(Boolean)
+        const isCurrent = p.model && p.model === currentModelName
         return (
           <div key={p.key} className={`prov-card ${editingKey === p.key ? "prov-card-editing" : ""}`}>
             <div className="prov-card-head">
@@ -323,6 +333,7 @@ const ProvidersPage = () => {
                 <div className="prov-title-row">
                   <span className="prov-card-name">{p.name || p.key}</span>
                   <span className="prov-card-type">{TYPE_LABELS[p.type] || p.type}</span>
+                  <span className={`prov-status-tag ${isCurrent ? "is-current" : ""}`}>{isCurrent ? "当前使用" : "可用"}</span>
                 </div>
                 <div className="prov-model-lines">
                   {modelLines.length ? modelLines.map((m) => <span key={m}>{m}</span>) : <span className="prov-empty-line">未设置模型</span>}
@@ -1264,7 +1275,7 @@ export default function App() {
               </div>
             </aside>
             <main className="settings-main">
-              <SettingsPanel active={settingsSection === "providers"}><ProvidersPage /></SettingsPanel>
+              <SettingsPanel active={settingsSection === "providers"}><ProvidersPage currentLlm={currentLlm} /></SettingsPanel>
               <SettingsPanel active={settingsSection === "storage"}><StoragePage /></SettingsPanel>
               <SettingsPanel active={settingsSection === "prompts"}><KnowledgePage section="prompts" /></SettingsPanel>
               <SettingsPanel active={settingsSection === "memory"}><KnowledgePage section="memory" /></SettingsPanel>

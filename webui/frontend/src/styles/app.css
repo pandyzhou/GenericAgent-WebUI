@@ -1612,6 +1612,20 @@ button:disabled {
   font-weight: 600;
 }
 
+.prov-status-tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--subtle);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.prov-status-tag.is-current {
+  background: rgba(64, 192, 87, 0.12);
+  color: #2f9e44;
+}
+
 .prov-model-lines {
   display: flex;
   flex-wrap: wrap;
@@ -1779,16 +1793,29 @@ button:disabled {
   border-top: 1px solid var(--border-soft);
 }
 
-.prov-test-result {
+.prov-test-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--subtle);
   font-size: 12px;
-  font-weight: 500;
 }
 
-.prov-test-result.is-ok {
-  color: #40c057;
+.prov-test-card strong {
+  font-size: 12px;
 }
 
-.prov-test-result.is-err {
+.prov-test-card small {
+  color: var(--muted);
+}
+
+.prov-test-card.is-ok {
+  color: #2f9e44;
+}
+
+.prov-test-card.is-err {
   color: #fa5252;
 }
 
