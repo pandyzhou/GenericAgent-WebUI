@@ -1119,20 +1119,6 @@ def assets(filepath):
     return static_file(filepath, root=os.path.join(FRONTEND_DIST, 'assets'))
 
 
-@app.get('/<filepath:path>')
-def fallback(filepath):
-    if filepath.startswith('api/'):
-        response.status = 404
-        return {'ok': False, 'error': 'not found'}
-    target = os.path.join(FRONTEND_DIST, filepath)
-    if os.path.exists(target):
-        return static_file(filepath, root=FRONTEND_DIST)
-    if os.path.exists(os.path.join(FRONTEND_DIST, 'index.html')):
-        return static_file('index.html', root=FRONTEND_DIST)
-    response.status = 404
-    return {'ok': False, 'error': 'frontend not built'}
-
-
 # ── IM Gateway configuration ────────────────────────────────────────────────
 
 IM_CHANNEL_SCHEMA = {
@@ -1403,6 +1389,20 @@ def _test_dingtalk(raw):
         return {'ok': False, 'error': f"钉钉返回错误: {data.get('errmsg', '未知错误')}"}
     except Exception as e:
         return {'ok': False, 'error': f'连接失败: {e}'}
+
+
+@app.get('/<filepath:path>')
+def fallback(filepath):
+    if filepath.startswith('api/'):
+        response.status = 404
+        return {'ok': False, 'error': 'not found'}
+    target = os.path.join(FRONTEND_DIST, filepath)
+    if os.path.exists(target):
+        return static_file(filepath, root=FRONTEND_DIST)
+    if os.path.exists(os.path.join(FRONTEND_DIST, 'index.html')):
+        return static_file('index.html', root=FRONTEND_DIST)
+    response.status = 404
+    return {'ok': False, 'error': 'frontend not built'}
 
 
 if __name__ == '__main__':
