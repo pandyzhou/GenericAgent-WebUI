@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react"
-import { api, SessionItem, StatusResponse, Provider, ChatMessage, KnowledgeGroup, KnowledgeItem } from "./api"
+import { api, SessionItem, StatusResponse, Provider, ChatMessage, KnowledgeGroup, KnowledgeItem, StorageGroup, StorageDetail, StorageCleanupResult } from "./api"
 import MessageRenderer from "./components/MessageRenderer"
 import "./styles/app.css"
 
@@ -539,6 +539,129 @@ function KnowledgePage({ section }: { section: string }) {
   )
 }
 
+function StoragePage() {
+  const [groups, setGroups] = useState<StorageGroup[]>([])
+  const [totalSize, setTotalSize] = useState(0)
+  const [totalFiles, setTotalFiles] = useState(0)
+  const [selectedKey, setSelectedKey] = useState('sessions')
+  const [detail, setDetail] = useState<StorageDetail | null>(null)
+  const [cleanup, setCleanup] = useState<StorageCleanupResult | null>(null)
+  const [days, setDays] = useState(7)
+  const [loading, setLoading] = useState(true)
+
+  const selected = groups.find((g) => g.key === selectedKey)
+  const cleanable = selected && selected.cleanup !== 'readonly'
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    const res = await api.storage()
+    setGroups(res.groups)
+    setTotalSize(res.total_size)
+    setTotalFiles(res.total_files)
+    const nextKey = res.groups.find((g) => g.key === selectedKey)?.key || res.groups[0]?.key || 'sessions'
+    setSelectedKey(nextKey)
+    const det = await api.storageDetail(nextKey)
+    setDetail(det)
+    setLoading(false)
+  }, [selectedKey])
+
+  useEffect(() => { load().catch(() => setLoading(false)) }, [load])
+
+  const selectGroup = async (key: string) => {
+    setSelectedKey(key)
+    setCleanup(null)
+    setDetail(await api.storageDetail(key))
+  }
+
+  const runCleanup = async (dryRun: boolean, mode = 'older_than_days') => {
+    const res = await api.cleanupStorage(selectedKey, { mode, days, dry_run: dryRun })
+    setCleanup(res)
+    if (!dryRun) await load()
+  }
+
+  const cleanupLabel = (value: StorageGroup['cleanup']) => ({ safe: '安全清理', cautious: '谨慎', manual: '手动', readonly: '只读' }[value])
+
+  return (
+    <div className="storage-page">
+      <div className="settings-breadcrumb">实例管理</div>
+      <h2 className="settings-title">储存空间</h2>
+      <div className="storage-stats">
+        <div><span>总占用</span><strong>{formatFileSize(totalSize)}</strong></div>
+        <div><span>文件数量</span><strong>{totalFiles}</strong></div>
+        <div><span>可清理分类</span><strong>{groups.filter((g) => g.cleanup !== 'readonly').length}</strong></div>
+        <div><span>最近修改</span><strong>{groups.length ? formatRelativeTime(Math.max(...groups.map((g) => g.mtime || 0))) : '-'}</strong></div>
+      </div>
+
+      <div className="storage-layout">
+        <aside className="storage-groups">
+          {groups.map((g) => (
+            <button key={g.key} className={`storage-group-card ${selectedKey === g.key ? 'is-active' : ''}`} onClick={() => selectGroup(g.key)}>
+              <span className="storage-group-title">{g.label}</span>
+              <span className="storage-group-path">{g.path}</span>
+              <span className="storage-group-desc">{g.desc}</span>
+              <span className="storage-group-meta">{formatFileSize(g.size)} · {g.files} 文件 · {cleanupLabel(g.cleanup)}</span>
+            </button>
+          ))}
+          {loading && <div className="storage-empty">加载中...</div>}
+        </aside>
+
+        <section className="storage-detail">
+          {detail?.group ? (
+            <>
+              <div className="storage-detail-head">
+                <div>
+                  <h3>{detail.group.label}</h3>
+                  <p>{detail.group.path}</p>
+                </div>
+                <button onClick={load}>刷新</button>
+              </div>
+              <div className="storage-detail-grid">
+                <div><span>大小</span><strong>{formatFileSize(detail.group.size)}</strong></div>
+                <div><span>文件</span><strong>{detail.group.files}</strong></div>
+                <div><span>目录</span><strong>{detail.group.dirs}</strong></div>
+                <div><span>策略</span><strong>{cleanupLabel(detail.group.cleanup)}</strong></div>
+              </div>
+
+              {cleanable && (
+                <div className="storage-cleanup">
+                  <div className="storage-cleanup-row">
+                    <label>清理超过</label>
+                    <input type="number" min={1} value={days} onChange={(e) => setDays(Number(e.target.value) || 1)} />
+                    <span>天的文件</span>
+                    <button onClick={() => runCleanup(true)}>预览清理</button>
+                    <button className="danger" disabled={!cleanup?.dry_run || cleanup.count === 0} onClick={() => runCleanup(false)}>确认清理</button>
+                  </div>
+                  {detail.group.key === 'sessions' && <button onClick={() => runCleanup(true, 'snapshots_only')}>预览会话快照清理</button>}
+                  {detail.group.key === 'logs' && <button onClick={() => runCleanup(true, 'logs_truncate')}>预览清空日志</button>}
+                </div>
+              )}
+
+              {cleanup && (
+                <div className="storage-cleanup-result">
+                  {cleanup.dry_run ? '预览' : '已执行'}：{cleanup.count} 个文件，{formatFileSize(cleanup.size)}
+                  {cleanup.files.length > 0 && <ul>{cleanup.files.slice(0, 8).map((f) => <li key={f.path}>{f.path} · {formatFileSize(f.size)}</li>)}</ul>}
+                </div>
+              )}
+
+              <div className="storage-largest">
+                <h4>最大文件</h4>
+                {detail.largest.length === 0 && <div className="storage-empty">暂无文件</div>}
+                {detail.largest.map((f) => (
+                  <div key={f.path} className="storage-file-row">
+                    <span>{f.path}</span>
+                    <strong>{formatFileSize(f.size)}</strong>
+                    <small>{formatRelativeTime(f.mtime)}</small>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : <div className="storage-empty">选择左侧分类查看详情。</div>}
+        </section>
+      </div>
+    </div>
+  )
+}
+
 const AboutPage = () => (
   <div className="appearance-page">
     <div className="settings-breadcrumb">实例管理</div>
@@ -1032,6 +1155,7 @@ export default function App() {
             </aside>
             <main className="settings-main">
               {settingsSection === "providers" && <ProvidersPage />}
+              {settingsSection === "storage" && <StoragePage />}
               {knowledgeSectionMap[settingsSection] && <KnowledgePage section={settingsSection} />}
               {settingsSection === "about" && <AboutPage />}
               {settingsSection === "appearance" && (
@@ -1084,7 +1208,7 @@ export default function App() {
                   </section>
                 </div>
               )}
-              {settingsSection !== "providers" && !knowledgeSectionMap[settingsSection] && settingsSection !== "about" && settingsSection !== "appearance" && (() => {
+              {settingsSection !== "providers" && settingsSection !== "storage" && !knowledgeSectionMap[settingsSection] && settingsSection !== "about" && settingsSection !== "appearance" && (() => {
                 const label = [...personalSettings, ...instanceSettings].find((item) => item.key === settingsSection)?.label
                 return (
                   <div className="settings-placeholder">

@@ -284,6 +284,211 @@ def api_history():
     return {'ok': True, 'history': getattr(agent, 'history', []) or []}
 
 
+# ── Storage management ───────────────────────────────────────────────────────
+
+STORAGE_GROUPS = {
+    'sessions': {
+        'label': '会话日志',
+        'path': 'temp/model_responses',
+        'cleanup': 'cautious',
+        'desc': '原始 LLM 请求/响应日志，用于历史会话恢复。',
+    },
+    'backups': {
+        'label': 'WebUI 备份',
+        'path': 'temp/webui_backups',
+        'cleanup': 'safe',
+        'desc': '编辑系统提示词、记忆、SOP、技能前自动创建的备份。',
+    },
+    'temp': {
+        'label': '临时文件',
+        'path': 'temp',
+        'cleanup': 'safe',
+        'desc': '上传媒体、临时脚本、工具输出等临时数据。',
+    },
+    'logs': {
+        'label': 'IM / 网关日志',
+        'path': 'temp',
+        'cleanup': 'safe',
+        'desc': 'Telegram、微信、企业微信、飞书等前端运行日志。',
+        'patterns': ['*.log', '../sche_tasks/*.log'],
+    },
+    'reports': {
+        'label': '自主任务报告',
+        'path': 'temp/autonomous_reports',
+        'cleanup': 'manual',
+        'desc': '自主任务 SOP 生成的报告和 history.txt。',
+    },
+    'l4': {
+        'label': 'L4 归档',
+        'path': 'memory/L4_raw_sessions',
+        'cleanup': 'readonly',
+        'desc': '压缩后的长期会话归档和 all_histories.txt。',
+    },
+    'frontend': {
+        'label': 'WebUI 构建缓存',
+        'path': 'webui/frontend',
+        'cleanup': 'readonly',
+        'desc': '前端依赖与构建产物，仅展示占用，不默认清理。',
+        'patterns': ['node_modules/**', 'dist/**'],
+    },
+}
+
+
+def _storage_group(key):
+    if key not in STORAGE_GROUPS:
+        raise ValueError('未知储存分类')
+    return STORAGE_GROUPS[key]
+
+
+def _safe_storage_root(rel):
+    rel = _rel_path(rel)
+    if rel.startswith('../') or ':' in rel:
+        raise ValueError('非法路径')
+    abs_path = os.path.abspath(os.path.join(ROOT, rel))
+    if not abs_path.startswith(os.path.abspath(ROOT)):
+        raise ValueError('路径越界')
+    return rel, abs_path
+
+
+def _iter_storage_files(key):
+    cfg = _storage_group(key)
+    rel, base = _safe_storage_root(cfg['path'])
+    if not os.path.exists(base):
+        return []
+    files = []
+    patterns = cfg.get('patterns')
+    if patterns:
+        for pat in patterns:
+            root = base
+            pattern = pat
+            if pat.startswith('../'):
+                root = os.path.abspath(os.path.join(base, os.path.dirname(pat)))
+                pattern = os.path.basename(pat)
+            files.extend(glob.glob(os.path.join(root, pattern), recursive=True))
+    else:
+        if os.path.isfile(base):
+            files = [base]
+        else:
+            files = [p for p in glob.glob(os.path.join(base, '**', '*'), recursive=True) if os.path.isfile(p)]
+    seen = []
+    for p in files:
+        ap = os.path.abspath(p)
+        if os.path.isfile(ap) and ap not in seen:
+            seen.append(ap)
+    return seen
+
+
+def _storage_summary(key):
+    cfg = _storage_group(key)
+    rel, base = _safe_storage_root(cfg['path'])
+    files = _iter_storage_files(key)
+    size = sum(os.path.getsize(p) for p in files if os.path.exists(p))
+    mtimes = [os.path.getmtime(p) for p in files if os.path.exists(p)]
+    dirs = 0
+    if os.path.isdir(base):
+        for _, dnames, _ in os.walk(base):
+            dirs += len(dnames)
+    return {
+        'key': key,
+        'label': cfg['label'],
+        'path': rel,
+        'size': size,
+        'files': len(files),
+        'dirs': dirs,
+        'mtime': max(mtimes) if mtimes else 0,
+        'cleanup': cfg['cleanup'],
+        'desc': cfg['desc'],
+    }
+
+
+def _rel_file_item(path):
+    rel = os.path.relpath(path, ROOT).replace('\\', '/')
+    st = os.stat(path)
+    return {'path': rel, 'name': os.path.basename(path), 'size': st.st_size, 'mtime': st.st_mtime}
+
+
+@app.get('/api/storage')
+def api_storage():
+    groups = [_storage_summary(k) for k in STORAGE_GROUPS]
+    return {
+        'ok': True,
+        'total_size': sum(g['size'] for g in groups),
+        'total_files': sum(g['files'] for g in groups),
+        'groups': groups,
+    }
+
+
+@app.get('/api/storage/<key>')
+def api_storage_detail(key):
+    try:
+        group = _storage_summary(key)
+        files = sorted((_rel_file_item(p) for p in _iter_storage_files(key)), key=lambda x: x['size'], reverse=True)
+        return {'ok': True, 'group': group, 'largest': files[:20]}
+    except Exception as e:
+        response.status = 400
+        return {'ok': False, 'error': str(e)}
+
+
+def _cleanup_candidates(key, mode, days):
+    cfg = _storage_group(key)
+    if cfg['cleanup'] == 'readonly':
+        raise ValueError('该分类为只读，不支持清理')
+    now = time.time()
+    current_session = os.path.abspath(_current_session_path())
+    files = _iter_storage_files(key)
+    candidates = []
+    for p in files:
+        ap = os.path.abspath(p)
+        name = os.path.basename(ap)
+        if ap == current_session:
+            continue
+        if key == 'sessions' and mode == 'snapshots_only' and 'snapshot' not in name:
+            continue
+        if key == 'logs' and mode != 'logs_truncate':
+            continue
+        if mode == 'older_than_days' and os.path.getmtime(ap) > now - float(days) * 86400:
+            continue
+        if mode == 'all' and cfg['cleanup'] != 'safe':
+            raise ValueError('仅安全分类允许清理全部')
+        candidates.append(ap)
+    return candidates
+
+
+@app.post('/api/storage/<key>/cleanup')
+def api_storage_cleanup(key):
+    payload = request.json or {}
+    mode = payload.get('mode', 'older_than_days')
+    days = int(payload.get('days', 7))
+    dry_run = bool(payload.get('dry_run', True))
+    try:
+        candidates = _cleanup_candidates(key, mode, days)
+        total_size = sum(os.path.getsize(p) for p in candidates if os.path.exists(p))
+        deleted = []
+        errors = []
+        if not dry_run:
+            for p in candidates:
+                try:
+                    if mode == 'logs_truncate':
+                        open(p, 'w', encoding='utf-8').close()
+                    else:
+                        os.remove(p)
+                    deleted.append(os.path.relpath(p, ROOT).replace('\\', '/'))
+                except Exception as e:
+                    errors.append({'path': os.path.relpath(p, ROOT).replace('\\', '/'), 'error': str(e)})
+        return {
+            'ok': True,
+            'dry_run': dry_run,
+            'count': len(candidates),
+            'size': total_size,
+            'files': [_rel_file_item(p) for p in candidates[:50] if os.path.exists(p)],
+            'deleted': deleted,
+            'errors': errors,
+        }
+    except Exception as e:
+        response.status = 400
+        return {'ok': False, 'error': str(e)}
+
+
 # ── Provider management ──────────────────────────────────────────────────────
 
 MYKEY_PATH = os.path.join(ROOT, 'mykey.py')

@@ -1937,6 +1937,232 @@ button:disabled {
   height: 100%;
 }
 
+/* ── Storage management ───────────────────────────────────────────────────── */
+
+.storage-page {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.storage-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.storage-stats > div,
+.storage-detail-grid > div {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--paper);
+}
+
+.storage-stats span,
+.storage-detail-grid span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.storage-stats strong,
+.storage-detail-grid strong {
+  font-size: 18px;
+}
+
+.storage-layout {
+  flex: 1 1 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.storage-groups,
+.storage-detail {
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--paper);
+  overflow: auto;
+}
+
+.storage-groups {
+  padding: 8px;
+}
+
+.storage-group-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  padding: 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.storage-group-card:hover,
+.storage-group-card.is-active {
+  background: var(--blue-soft);
+}
+
+.storage-group-title {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.storage-group-path {
+  color: var(--mantine-primary);
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+}
+
+.storage-group-desc {
+  color: var(--dimmed);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.storage-group-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.storage-detail {
+  padding: 16px;
+}
+
+.storage-detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.storage-detail-head h3 {
+  margin: 0 0 5px;
+  font-size: 18px;
+}
+
+.storage-detail-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.storage-detail button,
+.storage-cleanup button {
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--paper);
+  color: var(--text);
+}
+
+.storage-detail button.danger,
+.storage-cleanup button.danger {
+  border-color: #fa5252;
+  color: #fa5252;
+}
+
+.storage-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.storage-cleanup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.storage-cleanup-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--dimmed);
+  font-size: 13px;
+}
+
+.storage-cleanup-row input {
+  width: 70px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--paper);
+  color: var(--text);
+}
+
+.storage-cleanup-result {
+  padding: 12px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  background: var(--subtle);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.storage-cleanup-result ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+}
+
+.storage-largest h4 {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+
+.storage-file-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px 90px;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid var(--border-soft);
+  font-size: 12px;
+}
+
+.storage-file-row span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: "Cascadia Code", Consolas, monospace;
+}
+
+.storage-file-row strong,
+.storage-file-row small {
+  color: var(--muted);
+  text-align: right;
+}
+
+.storage-empty {
+  padding: 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 /* ── Repository / about links ─────────────────────────────────────────────── */
 
 .repo-grid {

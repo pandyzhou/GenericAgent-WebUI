@@ -53,6 +53,41 @@ export type KnowledgeFile = {
   mtime: number
 }
 
+export type StorageGroup = {
+  key: string
+  label: string
+  path: string
+  size: number
+  files: number
+  dirs: number
+  mtime: number
+  cleanup: 'safe' | 'cautious' | 'manual' | 'readonly'
+  desc: string
+}
+
+export type StorageFile = {
+  path: string
+  name: string
+  size: number
+  mtime: number
+}
+
+export type StorageDetail = {
+  ok: boolean
+  group: StorageGroup
+  largest: StorageFile[]
+}
+
+export type StorageCleanupResult = {
+  ok: boolean
+  dry_run: boolean
+  count: number
+  size: number
+  files: StorageFile[]
+  deleted: string[]
+  errors: { path: string; error: string }[]
+}
+
 export type Provider = {
   key: string
   name: string
@@ -128,4 +163,10 @@ export const api = {
     body: JSON.stringify({ path }),
   }),
   memoryStats: () => request<{ ok: boolean; stats: Record<string, { count?: number; last?: string }> }>('/api/knowledge/memory-stats'),
+  storage: () => request<{ ok: boolean; total_size: number; total_files: number; groups: StorageGroup[] }>('/api/storage'),
+  storageDetail: (key: string) => request<StorageDetail>(`/api/storage/${encodeURIComponent(key)}`),
+  cleanupStorage: (key: string, payload: { mode: string; days?: number; dry_run?: boolean }) => request<StorageCleanupResult>(`/api/storage/${encodeURIComponent(key)}/cleanup`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
 }
