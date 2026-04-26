@@ -1352,6 +1352,7 @@ button:disabled {
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.12);
   backdrop-filter: blur(10px);
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .slash-group + .slash-group {
