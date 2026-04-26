@@ -1447,6 +1447,22 @@ def _restore_im_processes():
                 'message': f'自动恢复失败: {e}',
             }
 
+def _read_im_config():
+    """Read IM-related config from mykey.py."""
+    result = {}
+    if not os.path.exists(MYKEY_PATH):
+        return result
+    with open(MYKEY_PATH, 'r', encoding='utf-8') as f:
+        content = f.read()
+    for key in IM_CONFIG_KEYS:
+        pattern = rf"^{re.escape(key)}\s*=\s*(.+)$"
+        m = re.search(pattern, content, re.MULTILINE)
+        if m:
+            result[key] = m.group(1).strip()
+    return result
+
+
+def _mask_value(value, visible=4):
     """Mask sensitive value, keep last N chars visible."""
     if not value or len(value) <= visible + 2:
         return value
