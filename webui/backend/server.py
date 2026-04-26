@@ -1301,6 +1301,110 @@ def api_im_save_config():
         return {'ok': False, 'error': str(e)}
 
 
+@app.post('/api/im/test/<channel>')
+def api_im_test(channel):
+    """Test IM channel configuration."""
+    if channel not in IM_CHANNEL_SCHEMA:
+        response.status = 400
+        return {'ok': False, 'error': '未知渠道'}
+
+    raw = _read_im_config()
+    schema = IM_CHANNEL_SCHEMA[channel]
+
+    # Check required fields
+    required = [f['key'] for f in schema.get('fields', []) if f.get('type') == 'password' or f['key'].endswith('_id') or f['key'].endswith('_token')]
+    missing = []
+    for key in required:
+        val = raw.get(key, '').strip("'\"")
+        if not val:
+            missing.append(key)
+    if missing:
+        return {'ok': False, 'error': f'缺少配置项: {", ".join(missing)}'}
+
+    try:
+        if channel == 'feishu':
+            return _test_feishu(raw)
+        elif channel == 'telegram':
+            return _test_telegram(raw)
+        elif channel == 'wecom':
+            return _test_wecom(raw)
+        elif channel == 'dingtalk':
+            return _test_dingtalk(raw)
+        elif channel == 'qq':
+            return {'ok': True, 'message': 'QQ 配置格式正确（需运行 qqapp.py 验证实际连接）'}
+        elif channel == 'wechat':
+            return {'ok': True, 'message': '微信无需配置，运行 wechatapp.py 扫码登录'}
+        elif channel == 'streamlit':
+            return {'ok': True, 'message': 'Streamlit 内置，无需配置'}
+        return {'ok': False, 'error': '该渠道暂不支持测试'}
+    except Exception as e:
+        return {'ok': False, 'error': str(e)}
+
+
+def _test_feishu(raw):
+    app_id = raw.get('fs_app_id', '').strip("'\"")
+    secret = raw.get('fs_app_secret', '').strip("'\"")
+    if not app_id or not secret:
+        return {'ok': False, 'error': '缺少 fs_app_id 或 fs_app_secret'}
+    try:
+        import urllib.request, urllib.parse
+        url = 'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal'
+        body = json.dumps({'app_id': app_id, 'app_secret': secret}).encode()
+        req = urllib.request.Request(url, data=body, headers={'Content-Type': 'application/json'}, method='POST')
+        resp = urllib.request.urlopen(req, timeout=15)
+        data = json.loads(resp.read().decode())
+        if data.get('code') == 0:
+            return {'ok': True, 'message': '飞书连接成功'}
+        return {'ok': False, 'error': f"飞书返回错误: {data.get('msg', '未知错误')}"}
+    except Exception as e:
+        return {'ok': False, 'error': f'连接失败: {e}'}
+
+
+def _test_telegram(raw):
+    token = raw.get('tg_bot_token', '').strip("'\"")
+    if not token:
+        return {'ok': False, 'error': '缺少 tg_bot_token'}
+    try:
+        import urllib.request
+        url = f'https://api.telegram.org/bot{token}/getMe'
+        req = urllib.request.Request(url, method='GET')
+        resp = urllib.request.urlopen(req, timeout=15)
+        data = json.loads(resp.read().decode())
+        if data.get('ok'):
+            bot = data.get('result', {})
+            return {'ok': True, 'message': f"Bot 连接成功: @{bot.get('username', 'unknown')}"}
+        return {'ok': False, 'error': f"Telegram 返回错误: {data.get('description', '未知错误')}"}
+    except Exception as e:
+        return {'ok': False, 'error': f'连接失败: {e}'}
+
+
+def _test_wecom(raw):
+    bot_id = raw.get('wecom_bot_id', '').strip("'\"")
+    secret = raw.get('wecom_secret', '').strip("'\"")
+    if not bot_id or not secret:
+        return {'ok': False, 'error': '缺少 wecom_bot_id 或 wecom_secret'}
+    return {'ok': True, 'message': '企业微信配置格式正确（需运行 wecomapp.py 验证实际连接）'}
+
+
+def _test_dingtalk(raw):
+    client_id = raw.get('dingtalk_client_id', '').strip("'\"")
+    secret = raw.get('dingtalk_client_secret', '').strip("'\"")
+    if not client_id or not secret:
+        return {'ok': False, 'error': '缺少 dingtalk_client_id 或 dingtalk_client_secret'}
+    try:
+        import urllib.request, urllib.parse
+        url = 'https://api.dingtalk.com/v1.0/oauth2/accessToken'
+        body = json.dumps({'appKey': client_id, 'appSecret': secret}).encode()
+        req = urllib.request.Request(url, data=body, headers={'Content-Type': 'application/json'}, method='POST')
+        resp = urllib.request.urlopen(req, timeout=15)
+        data = json.loads(resp.read().decode())
+        if data.get('accessToken'):
+            return {'ok': True, 'message': '钉钉连接成功'}
+        return {'ok': False, 'error': f"钉钉返回错误: {data.get('errmsg', '未知错误')}"}
+    except Exception as e:
+        return {'ok': False, 'error': f'连接失败: {e}'}
+
+
 if __name__ == '__main__':
     from bottle import run
     run(app, host='127.0.0.1', port=18765, debug=True, reloader=False)

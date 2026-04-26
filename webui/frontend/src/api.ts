@@ -215,4 +215,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ channel, fields }),
     }),
+  imTest: (channel: string) =>
+    request<{ ok: boolean; message?: string; error?: string }>(`/api/im/test/${encodeURIComponent(channel)}`, {
+      method: 'POST',
+      body: '{}',
+    }),
 }

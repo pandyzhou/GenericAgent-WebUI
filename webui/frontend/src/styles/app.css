@@ -2869,3 +2869,23 @@ button:disabled {
   justify-content: flex-end;
   margin-top: 4px;
 }
+
+.im-test-result {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.im-test-result.is-ok {
+  background: rgba(47, 158, 68, 0.1);
+  color: #2f9e44;
+  border: 1px solid rgba(47, 158, 68, 0.2);
+}
+
+.im-test-result.is-err {
+  background: rgba(250, 82, 82, 0.1);
+  color: #fa5252;
+  border: 1px solid rgba(250, 82, 82, 0.2);
+}

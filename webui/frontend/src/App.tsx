@@ -1049,6 +1049,8 @@ function GatewayPage() {
   const [editing, setEditing] = useState<string | null>(null)
   const [draft, setDraft] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState<string | null>(null)
+  const [testResult, setTestResult] = useState<{ key: string; ok: boolean; message: string } | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -1065,6 +1067,7 @@ function GatewayPage() {
 
   const startEdit = (ch: ImChannel) => {
     setEditing(ch.key)
+    setTestResult(null)
     const init: Record<string, string> = {}
     IM_CHANNEL_FIELDS[ch.key]?.forEach((f) => {
       init[f.key] = ch.fields[f.key] || ''
@@ -1091,6 +1094,18 @@ function GatewayPage() {
     setSaving(false)
   }
 
+  const test = async (key: string) => {
+    setTesting(key)
+    setTestResult(null)
+    try {
+      const res = await api.imTest(key)
+      setTestResult({ key, ok: res.ok, message: res.ok ? (res.message || '连接成功') : (res.error || '连接失败') })
+    } catch (e: any) {
+      setTestResult({ key, ok: false, message: e.message || '请求失败' })
+    }
+    setTesting(null)
+  }
+
   return (
     <div className="appearance-page">
       <div className="settings-breadcrumb">个人设置</div>
@@ -1110,11 +1125,24 @@ function GatewayPage() {
               {ch.note ? (
                 <span className="im-channel-note">{ch.note}</span>
               ) : (
-                <button className="prov-btn-sm" onClick={() => editing === ch.key ? cancelEdit() : startEdit(ch)}>
-                  {editing === ch.key ? '收起' : '编辑'}
-                </button>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {ch.configured && (
+                    <button className="prov-btn-sm" onClick={() => test(ch.key)} disabled={testing === ch.key}>
+                      {testing === ch.key ? '测试中...' : '测试连接'}
+                    </button>
+                  )}
+                  <button className="prov-btn-sm" onClick={() => editing === ch.key ? cancelEdit() : startEdit(ch)}>
+                    {editing === ch.key ? '收起' : '编辑'}
+                  </button>
+                </div>
               )}
             </div>
+
+            {testResult?.key === ch.key && (
+              <div className={`im-test-result ${testResult.ok ? 'is-ok' : 'is-err'}`}>
+                {testResult.message}
+              </div>
+            )}
 
             {editing === ch.key && IM_CHANNEL_FIELDS[ch.key] && (
               <div className="im-channel-form">
