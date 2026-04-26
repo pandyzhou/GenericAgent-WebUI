@@ -375,9 +375,17 @@ const formatRelativeTime = (mtime: number) => {
 const streamStatusText: Record<string, string> = {
   idle: "空闲",
   connecting: "连接中",
-  streaming: "生成中",
+  streaming: "推理中",
   done: "已完成",
   error: "出错",
+}
+
+const resolveRunState = (busy: boolean, streamStatus: string, running?: boolean) => {
+  if (busy) return streamStatusText[streamStatus] || "推理中"
+  if (streamStatus === 'error') return '出错'
+  if (streamStatus === 'done') return '已完成'
+  if (running) return '运行中'
+  return '空闲'
 }
 
 type SlashCommand = {
@@ -722,6 +730,7 @@ export default function App() {
   const [streamStatus, setStreamStatus] = useState<'idle' | 'connecting' | 'streaming' | 'done' | 'error'>('idle')
   const [selectedSessionIndex, setSelectedSessionIndex] = useState<number | null>(null)
   const [contextMenu, setContextMenu] = useState<null | { x: number; y: number; type: 'session' | 'message'; sessionIndex?: number; messageIndex?: number }>(null)
+  const [sessionSearch, setSessionSearch] = useState("")
   const [slashIndex, setSlashIndex] = useState(0)
   const chatListRef = useRef<HTMLDivElement | null>(null)
 
@@ -1071,6 +1080,13 @@ export default function App() {
     [status]
   )
 
+  const filteredSessions = useMemo(() => {
+    const query = sessionSearch.trim().toLowerCase()
+    const ordered = [...sessions].sort((a, b) => Number(Boolean(b.current)) - Number(Boolean(a.current)) || b.mtime - a.mtime)
+    if (!query) return ordered
+    return ordered.filter((s) => [s.preview, s.path, `${s.rounds}`].some((v) => String(v || '').toLowerCase().includes(query)))
+  }, [sessions, sessionSearch])
+
   const filteredSlashCommands = useMemo(() => {
     if (!prompt.startsWith("/")) return []
     const head = prompt.trimStart().split(/\s+/)[0].toLowerCase()
@@ -1265,18 +1281,22 @@ export default function App() {
                 <button className="conv-new-btn" onClick={startNewChat}>+ 新对话</button>
                 <div className="conv-side-meta">
                   <span className={`status-dot ${busy || status?.running ? "is-running" : ""}`} />
-                  <span>{busy ? streamStatusText[streamStatus] : status?.running ? "运行中" : "空闲"}</span>
+                  <span>{resolveRunState(busy, streamStatus, status?.running)}</span>
                 </div>
               </div>
               <div className="conv-section-title">历史会话</div>
+              <div className="conversation-history-search">
+                <input value={sessionSearch} onChange={(e) => setSessionSearch(e.target.value)} placeholder="搜索会话、轮数或路径..." />
+              </div>
               <div className="conversation-history-list">
-                {sessions.map((s) => (
+                {filteredSessions.map((s) => (
                   <button key={s.path} className={`conversation-history-item ${selectedSessionIndex === s.index ? "is-active" : ""}`} onClick={() => openSession(s.index)} onContextMenu={(e) => openContextMenu(e, { type: 'session', sessionIndex: s.index })}>
-                    <span className="history-preview">{s.preview || "未命名会话"}{s.current ? " · 当前" : ""}</span>
+                    <span className="history-preview">{s.preview || "未命名会话"}</span>
                     <span className="history-meta">{s.rounds} 轮 · {formatRelativeTime(s.mtime)}</span>
+                    <span className="history-tags">{s.current ? <span className="history-tag is-current">当前会话</span> : <span className="history-tag">历史</span>}</span>
                   </button>
                 ))}
-                {sessions.length === 0 && <div className="history-empty">暂无历史会话</div>}
+                {filteredSessions.length === 0 && <div className="history-empty">没有匹配的会话</div>}
               </div>
             </aside>
 
@@ -1287,7 +1307,7 @@ export default function App() {
                   <h2>GA 协作对话</h2>
                 </div>
                 <div className="conversation-toolbar">
-                  <span className={`stream-pill is-${streamStatus}`}><span className={`status-dot ${busy ? "is-running" : ""}`} />{streamStatusText[streamStatus]}</span>
+                  <span className={`stream-pill is-${streamStatus}`}><span className={`status-dot ${busy ? "is-running" : ""}`} />{resolveRunState(busy, streamStatus, status?.running)}</span>
                   <select className="model-select" value={status?.llm_no ?? 0} onChange={(e) => switchModel(Number(e.target.value))} disabled={busy}>
                     {(status?.llms || []).map((llm) => <option key={llm.index} value={llm.index}>{llm.name}</option>)}
                   </select>
@@ -1310,8 +1330,12 @@ export default function App() {
                   <div key={`${m.role}-${i}-${m.createdAt || 0}`} className={`message message--${m.role} ${m.status === 'error' ? 'is-error' : ''} ${m.status === 'streaming' ? 'is-streaming' : ''}`} onContextMenu={(e) => openContextMenu(e, { type: 'message', messageIndex: i })}>
                     <div className="message__avatar">{m.role === "user" ? "我" : m.role === "assistant" ? "GA" : "·"}</div>
                     <div className="message__body">
+                      <div className="message__meta">
+                        <span className="message__role">{m.role === 'user' ? '用户输入' : m.role === 'assistant' ? 'Agent 输出' : '系统提示'}</span>
+                        <span className="message__time">{m.createdAt ? new Date(m.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                      </div>
                       <MessageRenderer content={m.content} />
-                      {m.status && <span className="message-status">{m.status === 'streaming' ? '生成中' : m.status === 'error' ? '错误' : ''}</span>}
+                      {m.status && <span className="message-status">{m.status === 'streaming' ? '推理中' : m.status === 'error' ? '错误' : m.status === 'done' ? '已完成' : ''}</span>}
                     </div>
                   </div>
                 ))}
@@ -1386,7 +1410,8 @@ export default function App() {
               <div className="inspector-card">
                 <div className="inspector-title">当前状态</div>
                 <div className="inspector-row"><span>模型</span><strong>{currentLlm}</strong></div>
-                <div className="inspector-row"><span>运行</span><strong>{busy ? streamStatusText[streamStatus] : status?.running ? "运行中" : "空闲"}</strong></div>
+                <div className="inspector-row"><span>运行</span><strong>{resolveRunState(busy, streamStatus, status?.running)}</strong></div>
+                <div className="inspector-row"><span>Run ID</span><strong>{activeRunId ? activeRunId.slice(0, 8) : '—'}</strong></div>
                 <div className="inspector-row"><span>消息</span><strong>{messages.length}</strong></div>
                 <div className="inspector-row"><span>历史</span><strong>{status?.history_count ?? 0}</strong></div>
               </div>
