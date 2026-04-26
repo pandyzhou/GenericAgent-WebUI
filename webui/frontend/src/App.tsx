@@ -1043,6 +1043,16 @@ const IM_CHANNEL_FIELDS: Record<string, { key: string; label: string; type?: str
   ],
 }
 
+function SecretEyeIcon({ open }: { open: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+      {!open && <path d="M4 20 20 4" />}
+    </svg>
+  )
+}
+
 function GatewayPage() {
   const [channels, setChannels] = useState<ImChannel[]>([])
   const [loading, setLoading] = useState(true)
@@ -1176,7 +1186,7 @@ function GatewayPage() {
                             title={revealed ? '隐藏' : '显示'}
                             onClick={() => setShowSecrets((prev) => ({ ...prev, [f.key]: !prev[f.key] }))}
                           >
-                            {revealed ? '🙈' : '👁'}
+                            <SecretEyeIcon open={revealed} />
                           </button>
                         )}
                       </div>
