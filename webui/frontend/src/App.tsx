@@ -1235,6 +1235,22 @@ function ImDetailModal({
     }
   }, [inlineLogStickToBottom])
 
+  const downloadInlineLog = useCallback(() => {
+    if (!inlineLog) return
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+    const blob = new Blob([inlineLog], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `im-log-${ch.key}-${stamp}.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }, [inlineLog, ch.key])
+
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
   const validate = () => {
@@ -1376,10 +1392,13 @@ function ImDetailModal({
 
           {detailTab === 'log' && (
             <div className="im-inline-log-status">
-              <span className="im-inline-log-live">实时刷新中</span>
-              <span className="im-inline-log-time">
-                {inlineLogUpdatedAt ? `最后更新于 ${new Date(inlineLogUpdatedAt).toLocaleTimeString()}` : '等待首次加载'}
-              </span>
+              <div className="im-inline-log-status-text">
+                <span className="im-inline-log-live">实时刷新中</span>
+                <span className="im-inline-log-time">
+                  {inlineLogUpdatedAt ? `最后更新于 ${new Date(inlineLogUpdatedAt).toLocaleTimeString()}` : '等待首次加载'}
+                </span>
+              </div>
+              <button type="button" className="prov-btn-sm" onClick={downloadInlineLog} disabled={!inlineLog}>下载日志</button>
             </div>
           )}
 

@@ -3107,6 +3107,13 @@ button:disabled {
   color: var(--muted);
 }
 
+.im-inline-log-status-text {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .im-inline-log-live {
   color: #2f9e44;
   font-weight: 600;
