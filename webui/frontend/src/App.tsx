@@ -1153,6 +1153,7 @@ function ImDetailModal({
   const [inlineLog, setInlineLog] = useState<string>('')
   const [inlineLogLoading, setInlineLogLoading] = useState(false)
   const [inlineLogError, setInlineLogError] = useState<string | null>(null)
+  const [inlineLogUpdatedAt, setInlineLogUpdatedAt] = useState<number | null>(null)
 
   const [editSecrets, setEditSecrets] = useState<Record<string, boolean>>({})
   const [saving, setSaving] = useState(false)
@@ -1168,6 +1169,7 @@ function ImDetailModal({
     setFormErrors({})
     setInlineLog('')
     setInlineLogError(null)
+    setInlineLogUpdatedAt(null)
   }, [ch])
 
   useEffect(() => {
@@ -1180,10 +1182,12 @@ function ImDetailModal({
         if (!alive) return
         setInlineLog(res.content || '')
         setInlineLogError(null)
+        setInlineLogUpdatedAt(Date.now())
       } catch (e: any) {
         if (!alive) return
         setInlineLog('')
         setInlineLogError(e.message || '日志加载失败')
+        setInlineLogUpdatedAt(null)
       } finally {
         if (alive) setInlineLogLoading(false)
       }
@@ -1334,6 +1338,15 @@ function ImDetailModal({
                 <button className="prov-btn-sm" onClick={onClose} disabled={saving}>取消</button>
                 <button className="prov-btn-sm prov-btn-primary" onClick={saveConfig} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
               </div>
+            </div>
+          )}
+
+          {detailTab === 'log' && (
+            <div className="im-inline-log-status">
+              <span className="im-inline-log-live">实时刷新中</span>
+              <span className="im-inline-log-time">
+                {inlineLogUpdatedAt ? `最后更新于 ${new Date(inlineLogUpdatedAt).toLocaleTimeString()}` : '等待首次加载'}
+              </span>
             </div>
           )}
 

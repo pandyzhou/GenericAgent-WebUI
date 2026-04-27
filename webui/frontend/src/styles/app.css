@@ -3097,6 +3097,25 @@ button:disabled {
   gap: 10px;
 }
 
+.im-inline-log-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.im-inline-log-live {
+  color: #2f9e44;
+  font-weight: 600;
+}
+
+.im-inline-log-time {
+  color: var(--muted);
+}
+
 .im-detail-log-panel {
   min-height: 220px;
   border: 1px solid var(--border-soft);
