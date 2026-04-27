@@ -256,6 +256,14 @@ const ProvidersPage = ({ currentLlm }: { currentLlm: string }) => {
   const [testLoadingKey, setTestLoadingKey] = useState<string | null>(null)
   const [providerNotice, setProviderNotice] = useState<{ tone: 'success' | 'warning' | 'error'; message: string } | null>(null)
 
+  useEffect(() => {
+    if (!providerNotice) return
+    const delay = providerNotice.tone === 'success' ? 3000 : providerNotice.tone === 'warning' ? 6000 : 0
+    if (delay <= 0) return
+    const timer = window.setTimeout(() => setProviderNotice(null), delay)
+    return () => window.clearTimeout(timer)
+  }, [providerNotice])
+
   const loadProviders = useCallback(async () => {
     try {
       const res = await api.providers()
@@ -317,6 +325,7 @@ const ProvidersPage = ({ currentLlm }: { currentLlm: string }) => {
   const deleteProvider = async (key: string) => {
     await api.deleteProvider(key)
     if (editingKey === key) cancelEdit()
+    setProviderNotice(null)
     await loadProviders()
   }
 
@@ -356,7 +365,8 @@ const ProvidersPage = ({ currentLlm }: { currentLlm: string }) => {
 
       {providerNotice && (
         <div className={`provider-notice is-${providerNotice.tone}`}>
-          {providerNotice.message}
+          <span>{providerNotice.message}</span>
+          <button type="button" className="notice-close" onClick={() => setProviderNotice(null)} aria-label="关闭提示">×</button>
         </div>
       )}
 
@@ -1098,6 +1108,7 @@ function ImDetailModal({
   onToggleAutoRestart: () => void
   onOpenLog: () => void
   onSaveWarning: (key: string, message: string | null) => void
+  onClearWarning: () => void
   testResult: { ok: boolean; message: string } | null
   testing: boolean
   operating: string | null
@@ -1191,7 +1202,8 @@ function ImDetailModal({
 
         {saveWarning && (
           <div className="im-save-warning">
-            配置已保存，但 LLM 重载失败：{saveWarning}
+            <span>配置已保存，但 LLM 重载失败：{saveWarning}</span>
+            <button type="button" className="notice-close" onClick={onClearWarning} aria-label="关闭提示">×</button>
           </div>
         )}
 
@@ -1252,11 +1264,27 @@ function GatewayPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [statuses, setStatuses] = useState<Record<string, ImChannelStatus>>({})
-  const [saveWarnings, setSaveWarnings] = useState<Record<string, string>>({})
+  const [saveWarnings, setSaveWarnings] = useState<Record<string, { message: string; ts: number }>>({})
   const [logViewer, setLogViewer] = useState<{ channel: string; title: string; path: string; content: string; truncated: boolean; loading: boolean; live: boolean } | null>(null)
   const [testResult, setTestResult] = useState<{ key: string; ok: boolean; message: string } | null>(null)
   const [testing, setTesting] = useState<string | null>(null)
   const [operating, setOperating] = useState<string | null>(null)
+  const [detailChannel, setDetailChannel] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!detailChannel) return
+    const timer = window.setInterval(() => {
+      setSaveWarnings((prev) => {
+        const now = Date.now()
+        const next: Record<string, { message: string; ts: number }> = {}
+        for (const [k, v] of Object.entries(prev)) {
+          if (now - v.ts < 6000) next[k] = v
+        }
+        return next
+      })
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [detailChannel])
 
   const loadStatus = useCallback(async () => {
     try {
@@ -1419,14 +1447,19 @@ function GatewayPage() {
           onOpenLog={() => openLogViewer(detailCh.key, detailCh.name)}
           onSaveWarning={(key, message) => setSaveWarnings((prev) => {
             const next = { ...prev }
-            if (message) next[key] = message
+            if (message) next[key] = { message, ts: Date.now() }
             else delete next[key]
             return next
           })}
           testResult={detailTestResult}
           testing={testing === detailCh.key}
           operating={detailOperating}
-          saveWarning={saveWarnings[detailCh.key] || null}
+          saveWarning={saveWarnings[detailCh.key]?.message || null}
+          onClearWarning={() => setSaveWarnings((prev) => {
+            const next = { ...prev }
+            delete next[detailCh.key]
+            return next
+          })}
         />
       )}
 

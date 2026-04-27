@@ -2757,6 +2757,10 @@ button:disabled {
 /* ── IM Gateway ───────────────────────────────────────────────────────────── */
 
 .provider-notice {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
   margin: 0 0 16px;
   padding: 10px 12px;
   border-radius: 8px;
@@ -2781,6 +2785,44 @@ button:disabled {
   background: rgba(250, 82, 82, 0.1);
   color: #fa5252;
   border-color: rgba(250, 82, 82, 0.2);
+}
+
+.notice-close {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 0;
+}
+
+.notice-close:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.im-save-warning {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 12px 18px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(250, 176, 5, 0.32);
+  background: rgba(250, 176, 5, 0.12);
+  color: #9c6b00;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .im-channel-grid {
