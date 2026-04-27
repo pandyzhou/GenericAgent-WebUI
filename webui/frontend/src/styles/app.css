@@ -2982,6 +2982,7 @@ button:disabled {
   font-size: 12px;
   color: var(--muted);
   border-bottom: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--paper) 92%, var(--subtle));
 }
 
 .im-detail-meta .is-err {
@@ -2989,6 +2990,10 @@ button:disabled {
 }
 
 .im-save-warning {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
   margin: 12px 18px 0;
   padding: 10px 12px;
   border-radius: 8px;
@@ -3004,10 +3009,11 @@ button:disabled {
   gap: 0;
   padding: 0 18px;
   border-bottom: 1px solid var(--border-soft);
+  background: var(--paper);
 }
 
 .im-detail-tabs button {
-  padding: 10px 16px;
+  padding: 12px 16px 10px;
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
@@ -3022,12 +3028,25 @@ button:disabled {
   border-bottom-color: var(--mantine-primary);
 }
 
-.im-detail-config {
+.im-detail-body {
   padding: 16px 18px 20px;
+  min-height: 220px;
   overflow: auto;
+  background: var(--paper);
+}
+
+.im-detail-config {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.im-detail-log-panel {
+  min-height: 220px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--paper) 88%, var(--subtle));
+  overflow: hidden;
 }
 
 .im-detail-log {
@@ -3040,7 +3059,35 @@ button:disabled {
   font-size: 12px;
   line-height: 1.6;
   color: var(--text);
-  max-height: 300px;
+  min-height: 220px;
+  max-height: 320px;
+}
+
+.im-detail-empty {
+  min-height: 220px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--paper) 86%, var(--subtle));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+}
+
+.im-detail-empty-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.im-detail-empty-desc {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 320px;
 }
 
 .im-log-modal-backdrop {

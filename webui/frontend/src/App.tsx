@@ -1257,53 +1257,60 @@ function ImDetailModal({
           <button className={detailTab === 'log' ? 'is-active' : ''} onClick={() => { setDetailTab('log'); onOpenLog() }}>日志</button>
         </div>
 
-        {detailTab === 'config' && IM_CHANNEL_FIELDS[ch.key] && (
-          <div className="im-detail-config">
-                {IM_CHANNEL_FIELDS[ch.key].map((f) => {
-                  const isSecret = f.type === 'password'
-                  const revealed = Boolean(editSecrets[f.key])
-                  const hasError = Boolean(formErrors[f.key])
-                  return (
-                    <label key={f.key} className={`im-field ${hasError ? 'is-invalid' : ''}`}>
-                      <span>{f.label}</span>
-                      <div className={`im-input-wrap ${isSecret ? 'is-secret' : ''}`}>
-                        <input
-                          type={isSecret && !revealed ? 'password' : 'text'}
-                          value={editDraft[f.key] || ''}
-                          placeholder={f.placeholder || ''}
-                          onChange={(e) => {
-                            setEditDraft((prev) => ({ ...prev, [f.key]: e.target.value }))
-                            if (hasError) setFormErrors((prev) => { const n = { ...prev }; delete n[f.key]; return n })
-                          }}
-                        />
-                        {isSecret && (
-                          <button
-                            type="button"
-                            className="im-secret-toggle"
-                            aria-label={revealed ? '隐藏密钥' : '显示密钥'}
-                            title={revealed ? '隐藏' : '显示'}
-                            onClick={() => setEditSecrets((prev) => ({ ...prev, [f.key]: !prev[f.key] }))}
-                          >
-                            <SecretEyeIcon open={revealed} />
-                          </button>
-                        )}
-                      </div>
-                      {hasError && <span className="field-error">{formErrors[f.key]}</span>}
-                    </label>
-                  )
-                })}
-            <div className="im-channel-actions">
-              <button className="prov-btn-sm" onClick={onClose} disabled={saving}>取消</button>
-              <button className="prov-btn-sm prov-btn-primary" onClick={saveConfig} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
+        <div className="im-detail-body">
+          {detailTab === 'config' && IM_CHANNEL_FIELDS[ch.key] && (
+            <div className="im-detail-config">
+                  {IM_CHANNEL_FIELDS[ch.key].map((f) => {
+                    const isSecret = f.type === 'password'
+                    const revealed = Boolean(editSecrets[f.key])
+                    const hasError = Boolean(formErrors[f.key])
+                    return (
+                      <label key={f.key} className={`im-field ${hasError ? 'is-invalid' : ''}`}>
+                        <span>{f.label}</span>
+                        <div className={`im-input-wrap ${isSecret ? 'is-secret' : ''}`}>
+                          <input
+                            type={isSecret && !revealed ? 'password' : 'text'}
+                            value={editDraft[f.key] || ''}
+                            placeholder={f.placeholder || ''}
+                            onChange={(e) => {
+                              setEditDraft((prev) => ({ ...prev, [f.key]: e.target.value }))
+                              if (hasError) setFormErrors((prev) => { const n = { ...prev }; delete n[f.key]; return n })
+                            }}
+                          />
+                          {isSecret && (
+                            <button
+                              type="button"
+                              className="im-secret-toggle"
+                              aria-label={revealed ? '隐藏密钥' : '显示密钥'}
+                              title={revealed ? '隐藏' : '显示'}
+                              onClick={() => setEditSecrets((prev) => ({ ...prev, [f.key]: !prev[f.key] }))}
+                            >
+                              <SecretEyeIcon open={revealed} />
+                            </button>
+                          )}
+                        </div>
+                        {hasError && <span className="field-error">{formErrors[f.key]}</span>}
+                      </label>
+                    )
+                  })}
+              <div className="im-channel-actions">
+                <button className="prov-btn-sm" onClick={onClose} disabled={saving}>取消</button>
+                <button className="prov-btn-sm prov-btn-primary" onClick={saveConfig} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {detailTab === 'log' && status?.log_tail?.length ? (
-          <pre className="im-detail-log">{status.log_tail.join('\n')}</pre>
-        ) : detailTab === 'log' ? (
-          <p style={{ color: 'var(--muted)', padding: '20px 0' }}>暂无日志</p>
-        ) : null}
+          {detailTab === 'log' && status?.log_tail?.length ? (
+            <div className="im-detail-log-panel">
+              <pre className="im-detail-log">{status.log_tail.join('\n')}</pre>
+            </div>
+          ) : detailTab === 'log' ? (
+            <div className="im-detail-empty">
+              <div className="im-detail-empty-title">暂无日志</div>
+              <div className="im-detail-empty-desc">启动渠道后，这里会显示最近日志摘要。</div>
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   )
