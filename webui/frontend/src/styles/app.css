@@ -3132,6 +3132,11 @@ button:disabled {
   padding: 24px;
 }
 
+.im-detail-empty.is-error {
+  border-color: rgba(250, 82, 82, 0.28);
+  background: rgba(250, 82, 82, 0.06);
+}
+
 .im-detail-empty-title {
   font-size: 15px;
   font-weight: 600;

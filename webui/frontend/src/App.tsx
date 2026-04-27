@@ -1150,12 +1150,10 @@ function ImDetailModal({
   saveWarning: string | null
 }) {
   const [detailTab, setDetailTab] = useState<'config' | 'log'>('config')
+  const [inlineLog, setInlineLog] = useState<string>('')
+  const [inlineLogLoading, setInlineLogLoading] = useState(false)
+  const [inlineLogError, setInlineLogError] = useState<string | null>(null)
 
-  useEffect(() => {
-    setDetailTab('config')
-    setFormErrors({})
-  }, [ch.key])
-  const [editDraft, setEditDraft] = useState<Record<string, string>>({})
   const [editSecrets, setEditSecrets] = useState<Record<string, boolean>>({})
   const [saving, setSaving] = useState(false)
 
@@ -1166,7 +1164,37 @@ function ImDetailModal({
     })
     setEditDraft(init)
     setEditSecrets({})
+    setDetailTab('config')
+    setFormErrors({})
+    setInlineLog('')
+    setInlineLogError(null)
   }, [ch])
+
+  useEffect(() => {
+    if (detailTab !== 'log') return
+    let alive = true
+    const loadInlineLog = async () => {
+      setInlineLogLoading(true)
+      try {
+        const res = await api.imLog(ch.key)
+        if (!alive) return
+        setInlineLog(res.content || '')
+        setInlineLogError(null)
+      } catch (e: any) {
+        if (!alive) return
+        setInlineLog('')
+        setInlineLogError(e.message || '日志加载失败')
+      } finally {
+        if (alive) setInlineLogLoading(false)
+      }
+    }
+    loadInlineLog()
+    const timer = window.setInterval(loadInlineLog, 2000)
+    return () => {
+      alive = false
+      window.clearInterval(timer)
+    }
+  }, [detailTab, ch.key])
 
   const canManage = status?.managed && status?.script_exists
 
@@ -1309,9 +1337,19 @@ function ImDetailModal({
             </div>
           )}
 
-          {detailTab === 'log' && status?.log_tail?.length ? (
+          {detailTab === 'log' && inlineLogLoading ? (
+            <div className="im-detail-empty">
+              <div className="im-detail-empty-title">日志加载中...</div>
+              <div className="im-detail-empty-desc">正在读取该渠道的最新日志内容。</div>
+            </div>
+          ) : detailTab === 'log' && inlineLogError ? (
+            <div className="im-detail-empty is-error">
+              <div className="im-detail-empty-title">日志加载失败</div>
+              <div className="im-detail-empty-desc">{inlineLogError}</div>
+            </div>
+          ) : detailTab === 'log' && inlineLog ? (
             <div className="im-detail-log-panel">
-              <pre className="im-detail-log">{status.log_tail.join('\n')}</pre>
+              <pre className="im-detail-log">{inlineLog}</pre>
             </div>
           ) : detailTab === 'log' ? (
             <div className="im-detail-empty">
