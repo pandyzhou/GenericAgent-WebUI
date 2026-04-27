@@ -1150,6 +1150,11 @@ function ImDetailModal({
   saveWarning: string | null
 }) {
   const [detailTab, setDetailTab] = useState<'config' | 'log'>('config')
+
+  useEffect(() => {
+    setDetailTab('config')
+    setFormErrors({})
+  }, [ch.key])
   const [editDraft, setEditDraft] = useState<Record<string, string>>({})
   const [editSecrets, setEditSecrets] = useState<Record<string, boolean>>({})
   const [saving, setSaving] = useState(false)
@@ -1394,6 +1399,13 @@ function GatewayPage() {
   const runAction = async (key: string, action: 'start' | 'stop' | 'restart') => {
     setOperating(`${action}:${key}`)
     setTestResult(null)
+    if (action === 'start') {
+      setSaveWarnings((prev) => {
+        const next = { ...prev }
+        delete next[key]
+        return next
+      })
+    }
     try {
       if (action === 'start') await api.imStart(key)
       else if (action === 'stop') await api.imStop(key)
@@ -1499,7 +1511,10 @@ function GatewayPage() {
         <ImDetailModal
           ch={detailCh}
           status={detailStatus}
-          onClose={() => setDetailChannel(null)}
+          onClose={() => {
+            setDetailChannel(null)
+            setTestResult(null)
+          }}
           onStart={() => runAction(detailCh.key, 'start')}
           onStop={() => runAction(detailCh.key, 'stop')}
           onRestart={() => runAction(detailCh.key, 'restart')}
