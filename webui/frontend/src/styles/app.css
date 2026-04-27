@@ -1661,8 +1661,23 @@ button:disabled {
 }
 
 .prov-status-tag.is-current {
-  background: rgba(64, 192, 87, 0.12);
+  background: rgba(64, 192, 87, 0.14);
   color: #2f9e44;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+}
+
+.prov-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  background: rgba(250, 176, 5, 0.6);
+}
+
+.prov-status-dot.is-complete {
+  background: rgba(64, 192, 87, 0.6);
 }
 
 .prov-model-lines {
@@ -1767,6 +1782,12 @@ button:disabled {
   grid-template-columns: 1fr 1fr;
   gap: 12px 16px;
   padding-top: 14px;
+}
+
+@media (max-width: 640px) {
+  .prov-edit-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .prov-edit-grid label {
@@ -2970,6 +2991,17 @@ button:disabled {
   overflow: hidden;
 }
 
+@media (max-width: 640px) {
+  .im-detail-modal-backdrop {
+    padding: 8px;
+    align-items: flex-end;
+  }
+  .im-detail-modal {
+    max-height: 92vh;
+    border-radius: 12px 12px 0 0;
+  }
+}
+
 .im-detail-modal-head {
   display: flex;
   align-items: center;
@@ -3006,7 +3038,7 @@ button:disabled {
   font-size: 12px;
   color: var(--muted);
   border-bottom: 1px solid var(--border-soft);
-  background: color-mix(in srgb, var(--paper) 92%, var(--subtle));
+  background: var(--subtle);
 }
 
 .im-detail-meta .is-err {
@@ -3069,7 +3101,7 @@ button:disabled {
   min-height: 220px;
   border: 1px solid var(--border-soft);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--paper) 88%, var(--subtle));
+  background: var(--bg);
   overflow: hidden;
 }
 
@@ -3091,7 +3123,7 @@ button:disabled {
   min-height: 220px;
   border: 1px dashed var(--border);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--paper) 86%, var(--subtle));
+  background: var(--bg);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3135,6 +3167,17 @@ button:disabled {
   border-radius: 16px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
   overflow: hidden;
+}
+
+@media (max-width: 960px) {
+  .im-log-modal-backdrop {
+    padding: 8px;
+    align-items: flex-end;
+  }
+  .im-log-modal {
+    max-height: 92vh;
+    border-radius: 12px 12px 0 0;
+  }
 }
 
 .im-log-modal-head {

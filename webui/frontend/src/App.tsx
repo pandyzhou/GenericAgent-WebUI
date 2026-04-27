@@ -434,7 +434,11 @@ const ProvidersPage = ({ currentLlm }: { currentLlm: string }) => {
                 <div className="prov-title-row">
                   <span className="prov-card-name">{p.name || p.key}</span>
                   <span className="prov-card-type">{TYPE_LABELS[p.type] || p.type}</span>
-                  <span className={`prov-status-tag ${isCurrent ? "is-current" : ""}`}>{isCurrent ? "当前使用" : "可用"}</span>
+                  {isCurrent ? (
+                    <span className="prov-status-tag is-current">当前使用</span>
+                  ) : (
+                    <span className={`prov-status-dot ${p.model && p.apibase && p.apikey ? 'is-complete' : 'is-incomplete'}`} title={p.model && p.apibase && p.apikey ? '配置完整' : '配置不完整'} />
+                  )}
                 </div>
                 <div className="prov-model-lines">
                   {modelLines.length ? modelLines.map((m) => <span key={m}>{m}</span>) : <span className="prov-empty-line">未设置模型</span>}
