@@ -1459,6 +1459,9 @@ def _start_im_process(channel):
     py_path = os.pathsep.join([ROOT, GENERIC_AGENT_ROOT])
     env = os.environ.copy()
     env['PYTHONPATH'] = py_path + (os.pathsep + env['PYTHONPATH'] if env.get('PYTHONPATH') else '')
+    env['PYTHONIOENCODING'] = 'utf-8'
+    env['PYTHONUTF8'] = '1'
+    env['LANG'] = env.get('LANG') or 'C.UTF-8'
 
     logf = open(log_path, 'a', encoding='utf-8', buffering=1)
     proc = subprocess.Popen(
