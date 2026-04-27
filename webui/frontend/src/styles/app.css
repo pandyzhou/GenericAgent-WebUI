@@ -1780,10 +1780,10 @@ button:disabled {
 
 .prov-edit-grid input,
 .prov-edit-grid select {
-  height: 32px;
-  padding: 0 8px;
+  height: 36px;
+  padding: 0 10px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
   background: var(--bg);
   color: var(--text);
   font-size: 13px;
@@ -1808,10 +1808,10 @@ button:disabled {
 .prov-model-row input,
 .prov-model-row select {
   flex: 1;
-  height: 32px;
-  padding: 0 8px;
+  height: 36px;
+  padding: 0 10px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
   background: var(--bg);
   color: var(--text);
   font-size: 13px;
@@ -2862,13 +2862,37 @@ button:disabled {
 }
 
 .im-channel-status {
-  margin-left: 8px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: var(--subtle);
-  color: var(--muted);
   font-size: 11px;
+  font-weight: 500;
+  background: rgba(134, 142, 150, 0.12);
+  color: var(--muted);
+}
+
+.im-channel-status.is-on {
+  background: rgba(64, 192, 87, 0.12);
+  color: #2f9e44;
+}
+
+.im-runtime-status {
+  margin-left: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
   font-weight: 700;
+  background: rgba(134, 142, 150, 0.14);
+  color: var(--muted);
+}
+
+.im-runtime-status.is-running {
+  background: rgba(64, 192, 87, 0.18);
+  color: #2f9e44;
+}
+
+.im-runtime-status.is-stopped {
+  background: rgba(134, 142, 150, 0.14);
+  color: var(--muted);
 }
 
 .im-channel-status.is-on {
@@ -2948,16 +2972,16 @@ button:disabled {
 
 .im-detail-modal-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px 18px;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--border-soft);
 }
 
 .im-detail-modal-head h3 {
-  margin: 0 0 8px;
-  font-size: 18px;
+  margin: 0 0 6px;
+  font-size: 16px;
 }
 
 .im-detail-modal-tags {
@@ -3115,10 +3139,10 @@ button:disabled {
 
 .im-log-modal-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px 18px;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--border-soft);
 }
 
@@ -3135,7 +3159,10 @@ button:disabled {
 
 .im-log-modal-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .im-log-modal-tip {
@@ -3194,10 +3221,10 @@ button:disabled {
 }
 
 .im-field input {
-  height: 32px;
+  height: 36px;
   padding: 0 10px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--bg);
   color: var(--text);
   font-size: 13px;
