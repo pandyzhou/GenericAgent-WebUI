@@ -3193,8 +3193,8 @@ button:disabled {
   overflow: hidden;
 }
 
-@media (max-width: 960px) {
-:root[data-theme="darker"] .im-detail-modal-backdrop {
+:root[data-theme="darker"] .im-detail-modal-backdrop,
+:root[data-theme="darker"] .im-log-modal-backdrop {
   background: rgba(0, 0, 0, 0.72);
 }
 
@@ -3231,11 +3231,12 @@ button:disabled {
   background: #11141a;
 }
 
-.im-log-modal-backdrop {
-
+@media (max-width: 960px) {
+  .im-log-modal-backdrop {
     padding: 8px;
     align-items: flex-end;
   }
+
   .im-log-modal {
     max-height: 92vh;
     border-radius: 12px 12px 0 0;
