@@ -2756,6 +2756,33 @@ button:disabled {
 
 /* ── IM Gateway ───────────────────────────────────────────────────────────── */
 
+.provider-notice {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  border: 1px solid transparent;
+}
+
+.provider-notice.is-success {
+  background: rgba(47, 158, 68, 0.1);
+  color: #2f9e44;
+  border-color: rgba(47, 158, 68, 0.2);
+}
+
+.provider-notice.is-warning {
+  background: rgba(250, 176, 5, 0.12);
+  color: #9c6b00;
+  border-color: rgba(250, 176, 5, 0.32);
+}
+
+.provider-notice.is-error {
+  background: rgba(250, 82, 82, 0.1);
+  color: #fa5252;
+  border-color: rgba(250, 82, 82, 0.2);
+}
+
 .im-channel-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));

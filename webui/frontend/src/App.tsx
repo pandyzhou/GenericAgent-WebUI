@@ -254,6 +254,7 @@ const ProvidersPage = ({ currentLlm }: { currentLlm: string }) => {
   const [modelsLoadingKey, setModelsLoadingKey] = useState<string | null>(null)
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string; elapsed?: number } | null>(null)
   const [testLoadingKey, setTestLoadingKey] = useState<string | null>(null)
+  const [providerNotice, setProviderNotice] = useState<{ tone: 'success' | 'warning' | 'error'; message: string } | null>(null)
 
   const loadProviders = useCallback(async () => {
     try {
@@ -269,6 +270,7 @@ const ProvidersPage = ({ currentLlm }: { currentLlm: string }) => {
     setEditingKey(p.key)
     setDraft({ ...p, apikey: "" })
     setTestResult(null)
+    setProviderNotice(null)
     setAdding(false)
   }
 
@@ -277,6 +279,7 @@ const ProvidersPage = ({ currentLlm }: { currentLlm: string }) => {
     setEditingKey(null)
     setDraft({ type: "oai", name: "", apikey: "", apibase: "", model: "", api_mode: "chat_completions" })
     setTestResult(null)
+    setProviderNotice(null)
   }
 
   const cancelEdit = () => {
@@ -287,18 +290,28 @@ const ProvidersPage = ({ currentLlm }: { currentLlm: string }) => {
   }
 
   const saveEdit = async () => {
-    if (adding) {
-      const payload = { ...draft }
-      if (!payload.apikey) delete payload.apikey
-      await api.addProvider(payload)
-    } else if (editingKey) {
-      const payload = { ...draft }
-      if (!payload.apikey) delete payload.apikey
-      delete payload.key
-      await api.updateProvider(editingKey, payload)
+    try {
+      if (adding) {
+        const payload = { ...draft }
+        if (!payload.apikey) delete payload.apikey
+        await api.addProvider(payload)
+      } else if (editingKey) {
+        const payload = { ...draft }
+        if (!payload.apikey) delete payload.apikey
+        delete payload.key
+        await api.updateProvider(editingKey, payload)
+      }
+      setProviderNotice({ tone: 'success', message: '提供商配置已保存' })
+      cancelEdit()
+      await loadProviders()
+    } catch (e: any) {
+      const msg = e?.message || '保存失败'
+      if (msg.includes('配置已写入，但 LLM 重载失败')) {
+        setProviderNotice({ tone: 'warning', message: msg })
+      } else {
+        setProviderNotice({ tone: 'error', message: `保存失败：${msg}` })
+      }
     }
-    cancelEdit()
-    await loadProviders()
   }
 
   const deleteProvider = async (key: string) => {
@@ -340,6 +353,12 @@ const ProvidersPage = ({ currentLlm }: { currentLlm: string }) => {
         <h2 className="settings-title" style={{ margin: 0 }}>提供商</h2>
         <button type="button" className="prov-btn prov-btn-primary" onClick={startAdd}>+ 添加提供商</button>
       </div>
+
+      {providerNotice && (
+        <div className={`provider-notice is-${providerNotice.tone}`}>
+          {providerNotice.message}
+        </div>
+      )}
 
       {loading && <p style={{ color: "var(--muted)" }}>加载中...</p>}
 
