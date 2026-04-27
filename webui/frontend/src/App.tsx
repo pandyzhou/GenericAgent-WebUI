@@ -1154,6 +1154,8 @@ function ImDetailModal({
   const [inlineLogLoading, setInlineLogLoading] = useState(false)
   const [inlineLogError, setInlineLogError] = useState<string | null>(null)
   const [inlineLogUpdatedAt, setInlineLogUpdatedAt] = useState<number | null>(null)
+  const [inlineLogStickToBottom, setInlineLogStickToBottom] = useState(true)
+  const inlineLogRef = useRef<HTMLPreElement | null>(null)
   const [editDraft, setEditDraft] = useState<Record<string, string>>({})
 
   const [editSecrets, setEditSecrets] = useState<Record<string, boolean>>({})
@@ -1171,37 +1173,67 @@ function ImDetailModal({
     setInlineLog('')
     setInlineLogError(null)
     setInlineLogUpdatedAt(null)
+    setInlineLogStickToBottom(true)
   }, [ch])
 
   useEffect(() => {
     if (detailTab !== 'log') return
     let alive = true
-    const loadInlineLog = async () => {
-      setInlineLogLoading(true)
+    const loadInlineLog = async (initial = false) => {
+      const el = inlineLogRef.current
+      const prevScrollTop = el?.scrollTop || 0
+      const prevScrollHeight = el?.scrollHeight || 0
+      const prevClientHeight = el?.clientHeight || 0
+      const wasNearBottom = !el || prevScrollHeight - prevScrollTop - prevClientHeight < 32
+      if (initial) setInlineLogLoading(true)
       try {
         const res = await api.imLog(ch.key)
         if (!alive) return
-        setInlineLog(res.content || '')
+        const nextContent = res.content || ''
+        const contentChanged = nextContent !== inlineLog
+        setInlineLog(nextContent)
         setInlineLogError(null)
         setInlineLogUpdatedAt(Date.now())
+        if (contentChanged) {
+          requestAnimationFrame(() => {
+            const node = inlineLogRef.current
+            if (!node) return
+            if (wasNearBottom || inlineLogStickToBottom) {
+              node.scrollTop = node.scrollHeight
+              setInlineLogStickToBottom(true)
+            } else {
+              const newScrollHeight = node.scrollHeight
+              node.scrollTop = Math.max(0, prevScrollTop + (newScrollHeight - prevScrollHeight))
+            }
+          })
+        }
       } catch (e: any) {
         if (!alive) return
         setInlineLog('')
         setInlineLogError(e.message || '日志加载失败')
         setInlineLogUpdatedAt(null)
       } finally {
-        if (alive) setInlineLogLoading(false)
+        if (alive && initial) setInlineLogLoading(false)
       }
     }
-    loadInlineLog()
-    const timer = window.setInterval(loadInlineLog, 2000)
+    loadInlineLog(true)
+    const timer = window.setInterval(() => loadInlineLog(false), 2000)
     return () => {
       alive = false
       window.clearInterval(timer)
     }
-  }, [detailTab, ch.key])
+  }, [detailTab, ch.key, inlineLog, inlineLogStickToBottom])
 
   const canManage = status?.managed && status?.script_exists
+
+  const handleInlineLogScroll = useCallback(() => {
+    const el = inlineLogRef.current
+    if (!el) return
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 32
+    if (nearBottom !== inlineLogStickToBottom) {
+      setInlineLogStickToBottom(nearBottom)
+    }
+  }, [inlineLogStickToBottom])
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
@@ -1363,7 +1395,7 @@ function ImDetailModal({
             </div>
           ) : detailTab === 'log' && inlineLog ? (
             <div className="im-detail-log-panel">
-              <pre className="im-detail-log">{inlineLog}</pre>
+              <pre ref={inlineLogRef} onScroll={handleInlineLogScroll} className="im-detail-log">{inlineLog}</pre>
             </div>
           ) : detailTab === 'log' ? (
             <div className="im-detail-empty">
