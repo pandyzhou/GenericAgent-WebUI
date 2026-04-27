@@ -1154,6 +1154,7 @@ function ImDetailModal({
   const [inlineLogLoading, setInlineLogLoading] = useState(false)
   const [inlineLogError, setInlineLogError] = useState<string | null>(null)
   const [inlineLogUpdatedAt, setInlineLogUpdatedAt] = useState<number | null>(null)
+  const [editDraft, setEditDraft] = useState<Record<string, string>>({})
 
   const [editSecrets, setEditSecrets] = useState<Record<string, boolean>>({})
   const [saving, setSaving] = useState(false)
