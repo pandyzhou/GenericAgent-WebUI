@@ -1463,6 +1463,9 @@ def _start_im_process(channel):
     env['PYTHONUTF8'] = '1'
     env['LANG'] = env.get('LANG') or 'C.UTF-8'
 
+    if os.path.exists(log_path):
+        with open(log_path, 'w', encoding='utf-8') as _:
+            pass
     logf = open(log_path, 'a', encoding='utf-8', buffering=1)
     proc = subprocess.Popen(
         [sys.executable, script],
