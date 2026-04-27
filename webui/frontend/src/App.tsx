@@ -1258,7 +1258,7 @@ function ImDetailModal({
 
         <div className="im-detail-tabs">
           <button className={detailTab === 'config' ? 'is-active' : ''} onClick={() => setDetailTab('config')}>配置</button>
-          <button className={detailTab === 'log' ? 'is-active' : ''} onClick={() => { setDetailTab('log'); onOpenLog() }}>日志</button>
+          <button className={detailTab === 'log' ? 'is-active' : ''} onClick={() => setDetailTab('log')}>日志</button>
         </div>
 
         <div className="im-detail-body">
@@ -1505,7 +1505,7 @@ function GatewayPage() {
           onRestart={() => runAction(detailCh.key, 'restart')}
           onTest={() => test(detailCh.key)}
           onToggleAutoRestart={() => toggleAutoRestart(detailCh.key, Boolean(detailStatus?.auto_restart))}
-          onOpenLog={() => openLogViewer(detailCh.key, detailCh.name)}
+          onOpenLog={() => {}}
           onSaveWarning={(key, message) => setSaveWarnings((prev) => {
             const next = { ...prev }
             if (message) next[key] = { message, ts: Date.now() }
