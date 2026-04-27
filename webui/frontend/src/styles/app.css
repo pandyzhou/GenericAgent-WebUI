@@ -3198,6 +3198,21 @@ button:disabled {
   border-radius: 4px;
 }
 
+.im-field.is-invalid input {
+  border-color: #fa5252;
+}
+
+.im-field.is-invalid input:focus {
+  border-color: #fa5252;
+}
+
+.field-error {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #fa5252;
+}
+
 .im-field input:focus {
   border-color: var(--mantine-primary);
 }

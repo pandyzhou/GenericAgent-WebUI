@@ -171,12 +171,34 @@ function ProviderEditForm({
   cancelEdit: () => void
   saveEdit: () => Promise<void>
 }) {
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const cachedModels = providerKey ? (modelsCache[providerKey] || []) : []
+
+  const validate = () => {
+    const next: Record<string, string> = {}
+    if (!draft.name?.trim()) next.name = '名称不能为空'
+    if (adding && !draft.apikey?.trim()) next.apikey = 'API Key 不能为空'
+    if (!draft.apibase?.trim()) next.apibase = 'API Base URL 不能为空'
+    if (!draft.model?.trim()) next.model = '模型不能为空'
+    setErrors(next)
+    return Object.keys(next).length === 0
+  }
+
+  const handleSave = () => {
+    if (!validate()) return
+    saveEdit()
+  }
+
   return (
     <div className="prov-edit-form">
       <div className="prov-edit-grid">
-        <label>名称<input value={draft.name || ""} onChange={(e) => setDraft((prev) => ({ ...prev, name: e.target.value }))} /></label>
-        <label>类型
+        <label className={errors.name ? 'is-invalid' : ''}>
+          名称
+          <input value={draft.name || ""} onChange={(e) => { setDraft((prev) => ({ ...prev, name: e.target.value })); if (errors.name) setErrors((prev) => { const n = { ...prev }; delete n.name; return n }) }} />
+          {errors.name && <span className="field-error">{errors.name}</span>}
+        </label>
+        <label>
+          类型
           <select value={draft.type || "oai"} onChange={(e) => setDraft((prev) => ({ ...prev, type: e.target.value }))}>
             <option value="oai">OAI 兼容</option>
             <option value="native_claude">Native Claude</option>
@@ -184,18 +206,26 @@ function ProviderEditForm({
             <option value="claude">Claude</option>
           </select>
         </label>
-        <label>API Key<input type="password" placeholder={adding ? "输入 API Key" : "留空则不修改"} value={draft.apikey || ""} onChange={(e) => setDraft((prev) => ({ ...prev, apikey: e.target.value }))} /></label>
-        <label>API Base URL<input value={draft.apibase || ""} onChange={(e) => setDraft((prev) => ({ ...prev, apibase: e.target.value }))} /></label>
-        <label className="prov-model-field">
+        <label className={errors.apikey ? 'is-invalid' : ''}>
+          API Key
+          <input type="password" placeholder={adding ? "输入 API Key" : "留空则不修改"} value={draft.apikey || ""} onChange={(e) => { setDraft((prev) => ({ ...prev, apikey: e.target.value })); if (errors.apikey) setErrors((prev) => { const n = { ...prev }; delete n.apikey; return n }) }} />
+          {errors.apikey && <span className="field-error">{errors.apikey}</span>}
+        </label>
+        <label className={errors.apibase ? 'is-invalid' : ''}>
+          API Base URL
+          <input value={draft.apibase || ""} onChange={(e) => { setDraft((prev) => ({ ...prev, apibase: e.target.value })); if (errors.apibase) setErrors((prev) => { const n = { ...prev }; delete n.apibase; return n }) }} />
+          {errors.apibase && <span className="field-error">{errors.apibase}</span>}
+        </label>
+        <label className={`prov-model-field ${errors.model ? 'is-invalid' : ''}`}>
           模型
           <div className="prov-model-row">
             {cachedModels.length > 0 ? (
-              <select value={draft.model || ""} onChange={(e) => setDraft((prev) => ({ ...prev, model: e.target.value }))}>
+              <select value={draft.model || ""} onChange={(e) => { setDraft((prev) => ({ ...prev, model: e.target.value })); if (errors.model) setErrors((prev) => { const n = { ...prev }; delete n.model; return n }) }}>
                 <option value="">选择模型...</option>
                 {cachedModels.map((m) => <option key={m} value={m}>{m}</option>)}
               </select>
             ) : (
-              <input value={draft.model || ""} onChange={(e) => setDraft((prev) => ({ ...prev, model: e.target.value }))} />
+              <input value={draft.model || ""} onChange={(e) => { setDraft((prev) => ({ ...prev, model: e.target.value })); if (errors.model) setErrors((prev) => { const n = { ...prev }; delete n.model; return n }) }} />
             )}
             {providerKey && (
               <button type="button" className="prov-btn-sm" disabled={modelsLoadingKey === providerKey} onClick={() => fetchModels(providerKey, true)}>
@@ -203,6 +233,7 @@ function ProviderEditForm({
               </button>
             )}
           </div>
+          {errors.model && <span className="field-error">{errors.model}</span>}
         </label>
         {(draft.type === "oai" || draft.type === "native_oai") && (
           <label>API Mode
@@ -238,7 +269,7 @@ function ProviderEditForm({
         )}
         <span style={{ flex: 1 }} />
         <button type="button" className="prov-btn-sm" onClick={cancelEdit}>取消</button>
-        <button type="button" className="prov-btn-sm prov-btn-primary" onClick={saveEdit}>保存</button>
+        <button type="button" className="prov-btn-sm prov-btn-primary" onClick={handleSave}>保存</button>
       </div>
     </div>
   )
@@ -1130,7 +1161,21 @@ function ImDetailModal({
 
   const canManage = status?.managed && status?.script_exists
 
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+
+  const validate = () => {
+    const next: Record<string, string> = {}
+    IM_CHANNEL_FIELDS[ch.key]?.forEach((f) => {
+      if (!f.optional && !editDraft[f.key]?.trim()) {
+        next[f.key] = `${f.label} 不能为空`
+      }
+    })
+    setFormErrors(next)
+    return Object.keys(next).length === 0
+  }
+
   const saveConfig = async () => {
+    if (!validate()) return
     setSaving(true)
     try {
       const res = await api.imSaveConfig(ch.key, editDraft)
@@ -1214,34 +1259,39 @@ function ImDetailModal({
 
         {detailTab === 'config' && IM_CHANNEL_FIELDS[ch.key] && (
           <div className="im-detail-config">
-            {IM_CHANNEL_FIELDS[ch.key].map((f) => {
-              const isSecret = f.type === 'password'
-              const revealed = Boolean(editSecrets[f.key])
-              return (
-                <label key={f.key} className="im-field">
-                  <span>{f.label}</span>
-                  <div className={`im-input-wrap ${isSecret ? 'is-secret' : ''}`}>
-                    <input
-                      type={isSecret && !revealed ? 'password' : 'text'}
-                      value={editDraft[f.key] || ''}
-                      placeholder={f.placeholder || ''}
-                      onChange={(e) => setEditDraft((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                    />
-                    {isSecret && (
-                      <button
-                        type="button"
-                        className="im-secret-toggle"
-                        aria-label={revealed ? '隐藏密钥' : '显示密钥'}
-                        title={revealed ? '隐藏' : '显示'}
-                        onClick={() => setEditSecrets((prev) => ({ ...prev, [f.key]: !prev[f.key] }))}
-                      >
-                        <SecretEyeIcon open={revealed} />
-                      </button>
-                    )}
-                  </div>
-                </label>
-              )
-            })}
+                {IM_CHANNEL_FIELDS[ch.key].map((f) => {
+                  const isSecret = f.type === 'password'
+                  const revealed = Boolean(editSecrets[f.key])
+                  const hasError = Boolean(formErrors[f.key])
+                  return (
+                    <label key={f.key} className={`im-field ${hasError ? 'is-invalid' : ''}`}>
+                      <span>{f.label}</span>
+                      <div className={`im-input-wrap ${isSecret ? 'is-secret' : ''}`}>
+                        <input
+                          type={isSecret && !revealed ? 'password' : 'text'}
+                          value={editDraft[f.key] || ''}
+                          placeholder={f.placeholder || ''}
+                          onChange={(e) => {
+                            setEditDraft((prev) => ({ ...prev, [f.key]: e.target.value }))
+                            if (hasError) setFormErrors((prev) => { const n = { ...prev }; delete n[f.key]; return n })
+                          }}
+                        />
+                        {isSecret && (
+                          <button
+                            type="button"
+                            className="im-secret-toggle"
+                            aria-label={revealed ? '隐藏密钥' : '显示密钥'}
+                            title={revealed ? '隐藏' : '显示'}
+                            onClick={() => setEditSecrets((prev) => ({ ...prev, [f.key]: !prev[f.key] }))}
+                          >
+                            <SecretEyeIcon open={revealed} />
+                          </button>
+                        )}
+                      </div>
+                      {hasError && <span className="field-error">{formErrors[f.key]}</span>}
+                    </label>
+                  )
+                })}
             <div className="im-channel-actions">
               <button className="prov-btn-sm" onClick={onClose} disabled={saving}>取消</button>
               <button className="prov-btn-sm prov-btn-primary" onClick={saveConfig} disabled={saving}>{saving ? '保存中...' : '保存'}</button>
