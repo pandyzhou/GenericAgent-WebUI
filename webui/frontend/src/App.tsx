@@ -1063,9 +1063,11 @@ function ImDetailModal({
   onTest,
   onToggleAutoRestart,
   onOpenLog,
+  onSaveWarning,
   testResult,
   testing,
   operating,
+  saveWarning,
 }: {
   ch: ImChannel
   status: ImChannelStatus | undefined
@@ -1076,9 +1078,11 @@ function ImDetailModal({
   onTest: () => void
   onToggleAutoRestart: () => void
   onOpenLog: () => void
+  onSaveWarning: (key: string, message: string | null) => void
   testResult: { ok: boolean; message: string } | null
   testing: boolean
   operating: string | null
+  saveWarning: string | null
 }) {
   const [detailTab, setDetailTab] = useState<'config' | 'log'>('config')
   const [editDraft, setEditDraft] = useState<Record<string, string>>({})
@@ -1099,7 +1103,8 @@ function ImDetailModal({
   const saveConfig = async () => {
     setSaving(true)
     try {
-      await api.imSaveConfig(ch.key, editDraft)
+      const res = await api.imSaveConfig(ch.key, editDraft)
+      onSaveWarning(ch.key, res.warning || null)
       onClose()
       window.location.reload()
     } catch (e: any) {
@@ -1165,6 +1170,12 @@ function ImDetailModal({
           </div>
         )}
 
+        {saveWarning && (
+          <div className="im-save-warning">
+            配置已保存，但 LLM 重载失败：{saveWarning}
+          </div>
+        )}
+
         <div className="im-detail-tabs">
           <button className={detailTab === 'config' ? 'is-active' : ''} onClick={() => setDetailTab('config')}>配置</button>
           <button className={detailTab === 'log' ? 'is-active' : ''} onClick={() => { setDetailTab('log'); onOpenLog() }}>日志</button>
@@ -1222,7 +1233,7 @@ function GatewayPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [statuses, setStatuses] = useState<Record<string, ImChannelStatus>>({})
-  const [detailChannel, setDetailChannel] = useState<string | null>(null)
+  const [saveWarnings, setSaveWarnings] = useState<Record<string, string>>({})
   const [logViewer, setLogViewer] = useState<{ channel: string; title: string; path: string; content: string; truncated: boolean; loading: boolean; live: boolean } | null>(null)
   const [testResult, setTestResult] = useState<{ key: string; ok: boolean; message: string } | null>(null)
   const [testing, setTesting] = useState<string | null>(null)
@@ -1387,9 +1398,16 @@ function GatewayPage() {
           onTest={() => test(detailCh.key)}
           onToggleAutoRestart={() => toggleAutoRestart(detailCh.key, Boolean(detailStatus?.auto_restart))}
           onOpenLog={() => openLogViewer(detailCh.key, detailCh.name)}
+          onSaveWarning={(key, message) => setSaveWarnings((prev) => {
+            const next = { ...prev }
+            if (message) next[key] = message
+            else delete next[key]
+            return next
+          })}
           testResult={detailTestResult}
           testing={testing === detailCh.key}
           operating={detailOperating}
+          saveWarning={saveWarnings[detailCh.key] || null}
         />
       )}
 

@@ -2919,6 +2919,17 @@ button:disabled {
   color: #fa5252;
 }
 
+.im-save-warning {
+  margin: 12px 18px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(250, 176, 5, 0.32);
+  background: rgba(250, 176, 5, 0.12);
+  color: #9c6b00;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .im-detail-tabs {
   display: flex;
   gap: 0;

@@ -239,7 +239,7 @@ export const api = {
   imConfig: () => request<ImConfigResponse>('/api/im/config'),
   imStatus: () => request<ImStatusResponse>('/api/im/status'),
   imSaveConfig: (channel: string, fields: Record<string, string>) =>
-    request<{ ok: boolean }>('/api/im/config', {
+    request<{ ok: boolean; warning?: string }>('/api/im/config', {
       method: 'POST',
       body: JSON.stringify({ channel, fields }),
     }),
